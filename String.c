@@ -44,7 +44,7 @@ void append_c_string(String* str, char* cat) {
     append_string(str, _create_string_stck(cat));
 }
 
-char pop_back(String* str) {
+char pop_char_from_string(String* str) {
     if (str->size <= 0) return '\0';
 
     char element = str->s[str->size - 1];
@@ -53,3 +53,9 @@ char pop_back(String* str) {
 
     return element;
 }
+
+bool string_equals(String a, String b) {
+    return strcmp(a.s, b.s) == 0;
+}
+
+
