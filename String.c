@@ -58,4 +58,8 @@ bool string_equals(String a, String b) {
     return strcmp(a.s, b.s) == 0;
 }
 
+String safe_string(String s) {
+    // TODO: Implement some algorithm which escapes weird characters.
+    return s;
+}
 

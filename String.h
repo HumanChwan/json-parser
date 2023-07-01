@@ -22,5 +22,6 @@ void append_c_string(String* str, char* cat);
 char pop_char_from_string(String* str);
 
 bool string_equals(String a, String b);
+String safe_string(String s);
 
 #endif // JSON_PARSER_STRING_
