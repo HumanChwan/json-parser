@@ -23,6 +23,19 @@ String create_empty_string() {
     return (String){.size=0, .capacity=STRING_INIT_CAPACITY, .s=new_str};
 }
 
+void delete_string(String s) {
+    // WARN: Could raise an error if the string is created on stck
+    if (s.s != NULL)
+        free(s.s);
+}
+
+String copy_string(String s) {
+    char* new_str = malloc(s.capacity * sizeof(char));
+    strncpy(new_str, s.s, s.capacity);
+
+    return (String){.size=s.size, .capacity=s.capacity, .s=new_str};
+}
+
 void append_string(String* str, String src) {
     short change = 0; 
     while (src.size + str->size <= str->capacity) {

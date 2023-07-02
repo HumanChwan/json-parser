@@ -62,6 +62,14 @@ struct Object* get_object_for_key(struct Object* obj, String key);
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
+// DO NOT USE THESE FUNCTIONS IF NOT SURE ABOUT THE TYPE
+void set_int_for_key(struct Object* obj, String key, int* x);
+void set_int64_t_for_key(struct Object* obj, String key, int64_t* x);
+void set_double_for_key(struct Object* obj, String key, double* x);
+void set_char_for_key(struct Object* obj, String key, char* x);
+void set_string_for_key(struct Object* obj, String key, String* x);
+void set_object_for_key(struct Object* obj, String key, struct Object* x);
+
 void dump_json(struct Object obj, FILE* fp);
 
 #endif // JSON_PARSER_OBJECT_

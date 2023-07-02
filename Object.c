@@ -119,12 +119,24 @@ void* get_value_for_key(struct Object* obj, String key) {
     return (kvp != NULL ? kvp->value : NULL);
 }
 
-int get_int_for_key(struct Object* obj, String key) { return *(int*)get_value_for_key(obj, key); }
-int64_t get_int64_t_for_key(struct Object* obj, String key) { return *(int64_t*)get_value_for_key(obj, key); }
-double get_double_for_key(struct Object* obj, String key) { return *(double*)get_value_for_key(obj, key); }
-char get_char_for_key(struct Object* obj, String key) { return *(char*)get_value_for_key(obj, key); }
-String* get_string_for_key(struct Object* obj, String key) { return (String*)get_value_for_key(obj, key); }
-struct Object* get_object_for_key(struct Object* obj, String key) { return (struct Object*)get_value_for_key(obj, key); }
+int get_int_for_key(struct Object* obj, String key) { 
+    return *(int*)get_value_for_key(obj, key);
+}
+int64_t get_int64_t_for_key(struct Object* obj, String key) { 
+    return *(int64_t*)get_value_for_key(obj, key);
+}
+double get_double_for_key(struct Object* obj, String key) { 
+    return *(double*)get_value_for_key(obj, key);
+}
+char get_char_for_key(struct Object* obj, String key) { 
+    return *(char*)get_value_for_key(obj, key);
+}
+String* get_string_for_key(struct Object* obj, String key) { 
+    return (String*)get_value_for_key(obj, key);
+}
+struct Object* get_object_for_key(struct Object* obj, String key) { 
+    return (struct Object*)get_value_for_key(obj, key);
+}
 
 enum JSONType get_type_for_key(struct Object *obj, String key) {
     struct KeyValuePair* kvp = get_kvp_for_key(obj, key);
@@ -134,11 +146,12 @@ enum JSONType get_type_for_key(struct Object *obj, String key) {
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value) {
     uint32_t hash = _hash_string(key);
-
     size_t index = hash & (obj->arr_size - 1);
 
+    String copy_key = copy_string(key);
+
     struct NodeKVP* node = malloc(sizeof(struct NodeKVP));
-    node->NODE = (struct KeyValuePair){key, type, value};
+    node->NODE = (struct KeyValuePair){copy_key, type, value};
     node->NEXT = NULL;
 
     _add_to_index(obj->arr, index, node);
@@ -147,6 +160,25 @@ void set_value_for_key(struct Object* obj, String key, enum JSONType type, void*
     if (obj->element_count >= REHASH_FACTOR * obj->arr_size) {
         _rehash_object(obj);
     }
+}
+
+void set_int_for_key(struct Object* obj, String key, int* x) {
+    set_value_for_key(obj, key, JSON_TYPE_INTEGER, (void*)x);
+}
+void set_int64_t_for_key(struct Object* obj, String key, int64_t* x) {
+    set_value_for_key(obj, key, JSON_TYPE_LONG, (void*)x);
+}
+void set_double_for_key(struct Object* obj, String key, double* x) {
+    set_value_for_key(obj, key, JSON_TYPE_DOUBLE, (void*)x);
+}
+void set_char_for_key(struct Object* obj, String key, char* x) {
+    set_value_for_key(obj, key, JSON_TYPE_CHAR, (void*)x);
+}
+void set_string_for_key(struct Object* obj, String key, String* x) {
+    set_value_for_key(obj, key, JSON_TYPE_STRING, (void*)x);
+}
+void set_object_for_key(struct Object* obj, String key, struct Object* x) {
+    set_value_for_key(obj, key, JSON_TYPE_OBJECT, (void*)x);
 }
 
 

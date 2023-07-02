@@ -17,6 +17,10 @@ typedef struct  {
 
 String create_string(char* s);
 String create_empty_string();
+void delete_string(String s);
+
+String copy_string(String s);
+
 void append_string(String* str, String src);
 void append_c_string(String* str, char* cat);
 char pop_char_from_string(String* str);
