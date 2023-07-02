@@ -34,6 +34,7 @@ String copy_string(String s); // Copy Constructor, allocated memory
 
 void append_string(String* str, String src);
 void append_c_string(String* str, char* cat);
+void append_char_to_string(String* str, char c);
 char pop_char_from_string(String* str);
 
 bool string_equals(String a, String b);

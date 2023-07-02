@@ -53,6 +53,19 @@ void append_string(String* str, String src) {
     str->size += src.size;
 }
 
+void append_char_to_string(String* str, char c) {
+    if (1 + str->size <= str->capacity) {
+        str->capacity *= STRING_M_FACTOR;
+        str->s = realloc(str->s, str->capacity);
+    }
+
+    if (str->s == NULL)
+        exit(1);
+
+    str->s[str->size] = c;
+    str->s[++str->size] = '\0';
+}
+
 void append_c_string(String* str, char* cat) {
     append_string(str, IMM_STRING(cat));
 }

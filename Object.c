@@ -6,6 +6,9 @@
 #include <string.h>
 
 #include <stdio.h>
+#include <ctype.h>
+
+#include <assert.h>
 
 // Some JAVA code bruh moment, don't know shit about the math behind it.
 // Something to do with the lower bits being not very random. 
@@ -92,10 +95,8 @@ struct Object copy_object(struct Object obj) {
 
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
-        printf("hello World\n");
 
         while (iter != NULL) {
-            printf("hello World\n");
             switch (iter->NODE.type) {
                 case JSON_TYPE_INTEGER:
                     set_int_for_key(&ret, iter->NODE.key, *(int*)iter->NODE.value);
@@ -253,7 +254,7 @@ void set_object_for_key(struct Object* obj, String key, struct Object _x) {
 }
 
 
-void dump_json(struct Object obj, FILE* fp) {
+void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
     bool first = true;
 
     fprintf(fp, "{");
@@ -265,11 +266,17 @@ void dump_json(struct Object obj, FILE* fp) {
             if (!first) fprintf(fp, ",");
             else first = false;
 
-            fprintf(fp, "\"%s\":", FMT_STRING(safe_string(iter->NODE.key)));
+            if (indent != 0)
+                fprintf(fp, "\n");
+
+            for (size_t i = 0; i < (depth + 1) * indent; ++i)
+                fprintf(fp, " ");
+
+            fprintf(fp, "\"%s\": ", FMT_STRING(safe_string(iter->NODE.key)));
 
             switch (iter->NODE.type) {
                 case JSON_TYPE_OBJECT:
-                    dump_json(*(struct Object*)iter->NODE.value, fp);
+                    dump_json(fp, *(struct Object*)iter->NODE.value, depth + 1, indent);
                     break;
                 case JSON_TYPE_CHAR:
                     fprintf(fp, "\"%c\"", *(char*)iter->NODE.value);
@@ -296,5 +303,172 @@ void dump_json(struct Object obj, FILE* fp) {
         }
     }
 
+    if (indent != 0)
+        fprintf(fp, "\n");
+
+    for (size_t i = 0; i < depth * indent; ++i)
+        fprintf(fp, " ");
     fprintf(fp, "}");
+}
+
+String load_key(FILE* fp) {
+    // first character is always '"'
+    
+    assert(fgetc(fp) == '"' && "Key string must have the first character as \".");
+
+    String key = create_empty_string(); 
+    bool escape_init = false;
+
+    char c;
+    for (c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+        if (escape_init) {
+            // TODO: actually escape the characters
+            escape_init = false;
+        } else if (c == '\\') {
+            escape_init = true;
+            continue;
+        } else if (c == '"') {
+            break;
+        }
+
+        append_char_to_string(&key, c);
+    }
+
+    if (c == EOF) {
+        fprintf(stderr,  "[ERROR]: The buffer reached EOF while parsing a key.");
+        exit(1);
+    }
+
+    return key;
+}
+
+void load_value_to_obj(struct Object* obj, FILE* fp, String key, char first_char) {
+    // here the first character which would be gotten would not be space-like char. 
+    if (first_char == '{') {
+        struct Object value = load_json(fp);
+        set_object_for_key(obj, key, value);
+        delete_object(value);
+    } else if (first_char == '"') {
+        String value = load_key(fp);
+        set_string_for_key(obj, key, value);
+        delete_string(value);
+    } else {
+        double num = 0;
+        bool got_decimal = false;
+        double decimal_factor = 0.1;
+
+        for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+            if (c == '.') {
+                if (got_decimal) {
+                    fprintf(stderr, "[ERROR]: A decimal number must only contain single period char.\n");
+                    exit(1);
+                }
+                got_decimal = true;
+            } else if (!isdigit(c)) {
+                (void)fseek(fp, -1L, SEEK_CUR);
+                break;
+            }
+
+            short dig = c - '0';
+
+            if (got_decimal) {
+                num += dig * decimal_factor;
+                decimal_factor /= 10.;
+            } else {
+                num *= 10;
+                num += dig;
+            }
+        }
+
+        if (got_decimal) {
+            // DOUBLE
+            set_double_for_key(obj, key, num);
+        } else {
+            // LONG LONG
+            set_int64_t_for_key(obj, key, (int64_t)num);
+        }
+    }
+}
+
+struct Object load_json(FILE *fp) {
+    struct Object obj = create_object();
+
+    enum {
+        START,
+        KEY_START,
+        KEY_END,
+        VALUE_START,
+        VALUE_END,
+        END
+    } status = START;
+
+
+    String key;
+    for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue; 
+
+        switch (status) {
+            case START:
+                if (c != '{') {
+                    fprintf(stderr, "[ERROR]: Object doesn't start with `{`.\n");
+                    exit(1);
+                }
+                status = KEY_START;
+                break;
+            case KEY_START:
+                if (c != '"') {
+                    fprintf(stderr, "[ERROR]: Key must be string.\n");
+                    exit(1);
+                }
+                (void)fseek(fp, -1L, SEEK_CUR);
+                key = load_key(fp);
+                status = KEY_END;
+                break;
+            case KEY_END:
+                if (c != ':') {
+                    fprintf(stderr, "[ERROR]: Key must be succeeded by `:`\n");
+                    exit(1);
+                }
+                status = VALUE_START;
+                break;
+            case VALUE_START:
+                (void)fseek(fp, -1L, SEEK_CUR);
+                load_value_to_obj(&obj, fp, key, c);
+                status = VALUE_END;
+                break;
+            case VALUE_END:
+                if (c != ',' && c != '}') {
+                    fprintf(stderr, "[ERROR]: Value must be succeeded by `,` or `}`, Found: `%c`\n", c);
+                    exit(1);
+                }
+
+                if (c == ',') {
+                    status = KEY_START;
+                    break;
+                }
+
+                status = END;
+                if (c != '}') {
+                    fprintf(stderr, "[ERROR]: End of the object must have `}`\n");
+                    exit(1);
+                }
+
+                break;
+            default:
+                fprintf(stderr, "[ERROR]: This shouldn't be possible.\n");
+                exit(1);
+        }
+
+        // TODO: the file should be checked for characters after the main object. 
+        if (status == END) {
+            break;
+        }
+    }
+
+    if (status != END) {
+        fprintf(stderr, "[ERROR]: Reached EOF before end of object\n");
+        exit(1);
+    }
+
+    return obj;
 }
