@@ -60,7 +60,7 @@
     // Present state of object:
     /*
      * {
-     *     "name": "HumanChwan"
+     *     "name": "Dinesh Chukkala"
      * }
      */
     ```
@@ -76,7 +76,7 @@
     // Present state of object:
     /*
      * {
-     *     "name": "HumanChwan",
+     *     "name": "Dinesh Chukkala",
      *     "address": {
      *         "repo": "json-parser",
      *         "user": "HumanChwan",
