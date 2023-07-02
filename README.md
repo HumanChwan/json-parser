@@ -41,6 +41,45 @@
         String* get_string_for_key(struct Object* obj, String key);
         struct Object* get_object_for_key(struct Object* obj, String key);
         ```
+### Loading and Dumping JSON (basically formatting JSON)
+
+- Consider the file `unformatted.json`:
+    ```json
+    {"name":"Dinesh Chukkala","address":{"user":"HumanChwan","host":"github.com","repo":"json-parser"}}
+    ```
+- Compile and run the following code:
+    ```c
+    #include "Object.h"
+    #include "String.h"
+    
+    #include <stdio.h>
+
+    int main(void) {
+        FILE* rfp = fopen("unformatted.json", "r");
+        FILE* wfp = fopen("formatted.json", "w");
+
+        struct Object obj = load_json(rfp);
+
+        dump_json(wfp, obj, 0,     4);
+        //                  ^      ^
+        //                depth  indent
+    }
+    ```
+    ```console
+    $ gcc -o main main.c String.c Object.c
+    $ ./main
+    ```
+- Find the new file `formatted.json`:
+    ```json
+    {
+        "name": "Dinesh Chukkala",
+        "address": {
+            "user": "HumanChwan",
+            "host": "github.com",
+            "repo": "json-parser"
+        }
+    }
+    ```
 
 ### Creating an Object
 
