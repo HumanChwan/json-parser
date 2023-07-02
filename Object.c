@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <stdio.h>
+
 // Some JAVA code bruh moment, don't know shit about the math behind it.
 // Something to do with the lower bits being not very random. 
 uint32_t _hash_uniform(uint32_t h) {
@@ -78,6 +80,53 @@ struct Object create_object() {
     return (struct Object){.arr=arr, .arr_size=HASHMAP_INIT_SIZE, .element_count=0};
 }
 
+struct Object copy_object(struct Object obj) {
+    struct NodeKVP** arr = malloc(sizeof(struct NodeKVP*) * obj.arr_size);
+    
+    for (size_t i = 0; i < obj.arr_size; ++i)
+        arr[i] = NULL;
+
+    struct Object ret = obj;
+
+    ret.arr = arr;
+
+    for (size_t i = 0; i < obj.arr_size; ++i) {
+        struct NodeKVP* iter = obj.arr[i];
+        printf("hello World\n");
+
+        while (iter != NULL) {
+            printf("hello World\n");
+            switch (iter->NODE.type) {
+                case JSON_TYPE_INTEGER:
+                    set_int_for_key(&ret, iter->NODE.key, *(int*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_LONG:
+                    set_int64_t_for_key(&ret, iter->NODE.key, *(int64_t*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_CHAR:
+                    set_char_for_key(&ret, iter->NODE.key, *(char*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_DOUBLE:
+                    set_double_for_key(&ret, iter->NODE.key, *(double*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_STRING:
+                    set_string_for_key(&ret, iter->NODE.key, *(String*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_OBJECT:
+                    set_object_for_key(&ret, iter->NODE.key, *(struct Object*)iter->NODE.value);
+                    break;
+                default:
+                    fprintf(stderr, "[ERROR]: Encountered JSON_TYPE_NAT or others");
+                    exit(1);
+                    break;
+            }
+
+            iter = iter->NEXT;
+        }
+    }
+    return ret;
+}
+
 void delete_object(struct Object obj) {
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
@@ -88,6 +137,10 @@ void delete_object(struct Object obj) {
                 delete_object(*(struct Object*)iter->NODE.value);
             
             struct NodeKVP* temp = iter->NEXT;
+
+            if (iter->NODE.value != NULL)
+                free(iter->NODE.value);
+
             free(iter);
 
             iter = temp;
@@ -162,22 +215,40 @@ void set_value_for_key(struct Object* obj, String key, enum JSONType type, void*
     }
 }
 
-void set_int_for_key(struct Object* obj, String key, int* x) {
+void set_int_for_key(struct Object* obj, String key, int32_t _x) {
+    int32_t* x = malloc(sizeof(int32_t));
+    *x = _x;
+
     set_value_for_key(obj, key, JSON_TYPE_INTEGER, (void*)x);
 }
-void set_int64_t_for_key(struct Object* obj, String key, int64_t* x) {
+void set_int64_t_for_key(struct Object* obj, String key, int64_t _x) {
+    int64_t* x = malloc(sizeof(int64_t));
+    *x = _x;
+
     set_value_for_key(obj, key, JSON_TYPE_LONG, (void*)x);
 }
-void set_double_for_key(struct Object* obj, String key, double* x) {
+void set_double_for_key(struct Object* obj, String key, double _x) {
+    double* x = malloc(sizeof(double));
+    *x = _x;
+
     set_value_for_key(obj, key, JSON_TYPE_DOUBLE, (void*)x);
 }
-void set_char_for_key(struct Object* obj, String key, char* x) {
+void set_char_for_key(struct Object* obj, String key, char _x) {
+    char* x = malloc(sizeof(char));
+    *x = _x;
+
     set_value_for_key(obj, key, JSON_TYPE_CHAR, (void*)x);
 }
-void set_string_for_key(struct Object* obj, String key, String* x) {
+void set_string_for_key(struct Object* obj, String key, String _x) {
+    String* x = malloc(sizeof(String));
+    *x = copy_string(_x);
+
     set_value_for_key(obj, key, JSON_TYPE_STRING, (void*)x);
 }
-void set_object_for_key(struct Object* obj, String key, struct Object* x) {
+void set_object_for_key(struct Object* obj, String key, struct Object _x) {
+    struct Object *x = malloc(sizeof(struct Object));
+    *x = copy_object(_x);
+
     set_value_for_key(obj, key, JSON_TYPE_OBJECT, (void*)x);
 }
 

@@ -12,7 +12,7 @@ String create_string(char* s) {
     return (String){.size=s_size - 1, .capacity=s_size, .s=new_str};
 }
 
-String _create_string_stck(char *s) {
+String create_string_from_stack(char *s) {
     size_t s_size = strlen(s) + 1;
 
     return (String){.size=s_size - 1, .capacity=s_size, .s=s};
@@ -54,7 +54,7 @@ void append_string(String* str, String src) {
 }
 
 void append_c_string(String* str, char* cat) {
-    append_string(str, _create_string_stck(cat));
+    append_string(str, IMM_STRING(cat));
 }
 
 char pop_char_from_string(String* str) {
