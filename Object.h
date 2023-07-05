@@ -6,6 +6,8 @@
 
 #include "String.h"
 
+#include "types.h"
+
 #define HASHMAP_INIT_SIZE 16
 
 // Be careful while changing this.
@@ -13,17 +15,6 @@
 #define HASHMAP_M_FACTOR 2
 
 #define REHASH_FACTOR 0.75f
-
-enum JSONType {
-    JSON_TYPE_CHAR,
-    JSON_TYPE_STRING,
-    JSON_TYPE_INTEGER,
-    JSON_TYPE_LONG,
-    JSON_TYPE_DOUBLE,
-    JSON_TYPE_OBJECT,
-    JSON_TYPE_NAT, // NOT A TYPE
-    JSON_TYPE_TYPE_COUNT
-};
 
 struct KeyValuePair {
     String key;    
@@ -40,8 +31,6 @@ struct Object {
     struct NodeKVP** arr;
     size_t element_count, arr_size;
 };
-
-
 
 // To be used by user, "API"
 struct Object create_object();

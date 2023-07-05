@@ -2,12 +2,29 @@
 #include "../String.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-int main(void) {
-    FILE* rfp = fopen("test.json", "r");
-    FILE* wfp = fopen("write.json", "w");
+void usage(void) {
+    printf("USAGE:\n\tfmtjson FILE\n\tFILE: a json file");
+}
 
-    struct Object obj = load_json(rfp);
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        usage();
+        exit(1);
+    }
 
-    dump_json(wfp, obj, 0, 4);
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        usage();
+        exit(0);
+    }
+
+    FILE* fp = fopen(argv[1], "r");
+    struct Object obj = load_json(fp);
+    fclose(fp);
+
+    fp = fopen(argv[1], "w");
+    dump_json(fp, obj, 0, 4);
+    fclose(fp);
 }
