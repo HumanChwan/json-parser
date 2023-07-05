@@ -65,6 +65,7 @@ void set_object_for_key(struct Object* obj, String key, struct Object x);
 void set_array_for_key(struct Object* obj, String key, Array x);
 
 void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent);
+Array load_array(FILE* fp);
 struct Object load_json(FILE* fp);
 
 #endif // JSON_PARSER_OBJECT_

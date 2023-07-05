@@ -212,10 +212,8 @@ void set_value_for_key(struct Object* obj, String key, enum JSONType type, void*
     uint32_t hash = _hash_string(key);
     size_t index = hash & (obj->arr_size - 1);
 
-    String copy_key = copy_string(key);
-
     struct NodeKVP* node = malloc(sizeof(struct NodeKVP));
-    node->NODE = (struct KeyValuePair){copy_key, type, value};
+    node->NODE = (struct KeyValuePair){copy_string(key), type, value};
     node->NEXT = NULL;
 
     _add_to_index(obj->arr, index, node);
@@ -384,7 +382,7 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
     fprintf(fp, "}");
 }
 
-String load_key(FILE* fp) {
+String load_string(FILE* fp) {
     // first character is always '"'
     
     assert(fgetc(fp) == '"' && "Key string must have the first character as \".");
@@ -415,16 +413,20 @@ String load_key(FILE* fp) {
     return key;
 }
 
-void load_value_to_obj(struct Object* obj, FILE* fp, String key, char first_char) {
+struct ArrayElement load_value(FILE* fp, char first_char) {
     // here the first character which would be gotten would not be space-like char. 
     if (first_char == '{') {
-        struct Object value = load_json(fp);
-        set_object_for_key(obj, key, value);
-        delete_object(value);
+        struct Object *value = malloc(sizeof(struct Object));
+        *value = load_json(fp);
+        return (struct ArrayElement){JSON_TYPE_OBJECT, (void*)value};
+    } else if (first_char == '[') {
+        Array *value = malloc(sizeof(Array));
+        *value = load_array(fp);
+        return (struct ArrayElement){JSON_TYPE_ARRAY, (void*)value};
     } else if (first_char == '"') {
-        String value = load_key(fp);
-        set_string_for_key(obj, key, value);
-        delete_string(value);
+        String *value = malloc(sizeof(String));
+        *value = load_string(fp);
+        return (struct ArrayElement){JSON_TYPE_STRING, (void*)value};
     } else {
         double num = 0;
         bool got_decimal = false;
@@ -455,12 +457,73 @@ void load_value_to_obj(struct Object* obj, FILE* fp, String key, char first_char
 
         if (got_decimal) {
             // DOUBLE
-            set_double_for_key(obj, key, num);
+            double *value = malloc(sizeof(double));
+            *value = num;
+
+            return (struct ArrayElement){JSON_TYPE_DOUBLE, (void*)value};
         } else {
             // LONG LONG
-            set_int64_t_for_key(obj, key, (int64_t)num);
+            int64_t* value = malloc(sizeof(int64_t));
+            *value = num;
+
+            return (struct ArrayElement){JSON_TYPE_LONG, (void*)value};
         }
     }
+}
+
+Array load_array(FILE* fp) {
+    Array array = create_empty_array();
+
+    enum {
+        START,
+        ELEMENT_START,
+        ELEMENT_END,
+        END
+    } status = START;
+
+    for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue; 
+
+        switch (status) {
+            case START:
+                if (c != '[') {
+                    fprintf(stderr, "[ERROR]: Array doesn't start with `[`.\n");
+                    exit(1);
+                }
+                status = ELEMENT_START;
+                break;
+            case ELEMENT_START:
+                (void)fseek(fp, -1L, SEEK_CUR);
+                struct ArrayElement el = load_value(fp, c);
+                array_push_back(&array, el.type, el.value);
+
+                status = ELEMENT_END;
+                break;
+            case ELEMENT_END:
+                if (c != ']' && c != ',') {
+                    fprintf(stderr, "[ERROR]: Array elements must end with a `,` or `]`\n");
+                    exit(1);
+                }
+
+                if (c == ']') status = END;
+                else status = ELEMENT_START;
+                break;
+            case END:
+                break;
+            default:
+                fprintf(stderr, "[ERROR]: Array parsing has reached unreachable state.\n Aborting.\n");
+                exit(1);
+        }
+
+        if (status == END) break;
+    }
+
+    if (status != END) {
+        fprintf(stderr, "[ERROR]: Array parsing got cancelled before reaching end.\n Aborting.\n");
+        exit(1);
+    }
+
+    return array;
 }
 
 struct Object load_json(FILE *fp) {
@@ -494,7 +557,7 @@ struct Object load_json(FILE *fp) {
                     exit(1);
                 }
                 (void)fseek(fp, -1L, SEEK_CUR);
-                key = load_key(fp);
+                key = load_string(fp);
                 status = KEY_END;
                 break;
             case KEY_END:
@@ -506,7 +569,8 @@ struct Object load_json(FILE *fp) {
                 break;
             case VALUE_START:
                 (void)fseek(fp, -1L, SEEK_CUR);
-                load_value_to_obj(&obj, fp, key, c);
+                struct ArrayElement el = load_value(fp, c);
+                set_value_for_key(&obj, key, el.type, el.value);
                 status = VALUE_END;
                 break;
             case VALUE_END:

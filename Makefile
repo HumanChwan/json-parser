@@ -8,10 +8,17 @@ all: main
 main: main.c $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: simple_dump load_n_dump
+test: simple_dump fmtjson
 
 simple_dump: tests/simple_dump.c $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-load_n_dump: tests/load_n_dump.c $(DEPS)
+fmtjson: tests/fmtjson.c $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
+
+
+clean:
+	rm fmtjson simple_dump main
+
+
+.PHONY: all clean

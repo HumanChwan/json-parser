@@ -16,7 +16,9 @@ Array create_array(size_t size) {
 }
 
 Array create_empty_array() {
-    return create_array(ARRAY_INIT_CAPACITY);
+    struct ArrayElement* arr = malloc(sizeof(struct ArrayElement) * ARRAY_INIT_CAPACITY);
+
+    return (Array){.size=0, .capacity=ARRAY_INIT_CAPACITY, .a=arr};
 }
 
 void delete_array(Array array) {
