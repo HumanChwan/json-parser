@@ -120,6 +120,7 @@ struct Object copy_object(struct Object obj) {
                     break;
                 case JSON_TYPE_ARRAY:
                     set_array_for_key(&ret, iter->NODE.key, *(Array*)iter->NODE.value);
+                    break;
                 default:
                     fprintf(stderr, "[ERROR]: Encountered JSON_TYPE_NAT or others");
                     exit(1);
@@ -290,6 +291,7 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
                 break;
             case JSON_TYPE_ARRAY:
                 dump_array(fp, *(Array*)el.value, depth + 1, indent);
+                break;
             case JSON_TYPE_CHAR:
                 fprintf(fp, "\"%c\"", *(char*)el.value);
                 break;
