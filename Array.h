@@ -6,7 +6,7 @@
 
 #include "types.h"
 #include "String.h"
-#include "Object.h"
+struct Object;
 
 #define ARRAY_INIT_CAPACITY 128
 #define ARRAY_M_FACTOR 2

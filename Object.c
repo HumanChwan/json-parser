@@ -1,5 +1,7 @@
 #include "Object.h"
+#include "Array.h"
 #include "String.h"
+#include "types.h"
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -99,7 +101,7 @@ struct Object copy_object(struct Object obj) {
         while (iter != NULL) {
             switch (iter->NODE.type) {
                 case JSON_TYPE_INTEGER:
-                    set_int_for_key(&ret, iter->NODE.key, *(int*)iter->NODE.value);
+                    set_int32_t_for_key(&ret, iter->NODE.key, *(int*)iter->NODE.value);
                     break;
                 case JSON_TYPE_LONG:
                     set_int64_t_for_key(&ret, iter->NODE.key, *(int64_t*)iter->NODE.value);
@@ -116,6 +118,8 @@ struct Object copy_object(struct Object obj) {
                 case JSON_TYPE_OBJECT:
                     set_object_for_key(&ret, iter->NODE.key, *(struct Object*)iter->NODE.value);
                     break;
+                case JSON_TYPE_ARRAY:
+                    set_array_for_key(&ret, iter->NODE.key, *(Array*)iter->NODE.value);
                 default:
                     fprintf(stderr, "[ERROR]: Encountered JSON_TYPE_NAT or others");
                     exit(1);
@@ -133,9 +137,12 @@ void delete_object(struct Object obj) {
         struct NodeKVP* iter = obj.arr[i];
 
         while (iter != NULL) {
-            // TODO: Handle Arrays differently
             if (iter->NODE.type == JSON_TYPE_OBJECT)
                 delete_object(*(struct Object*)iter->NODE.value);
+            else if (iter->NODE.type == JSON_TYPE_STRING)
+                delete_string(*(String*)iter->NODE.value);
+            else if (iter->NODE.type == JSON_TYPE_ARRAY)
+                delete_array(*(Array*)iter->NODE.value);
             
             struct NodeKVP* temp = iter->NEXT;
 
@@ -173,7 +180,7 @@ void* get_value_for_key(struct Object* obj, String key) {
     return (kvp != NULL ? kvp->value : NULL);
 }
 
-int get_int_for_key(struct Object* obj, String key) { 
+int get_int32_t_for_key(struct Object* obj, String key) { 
     return *(int*)get_value_for_key(obj, key);
 }
 int64_t get_int64_t_for_key(struct Object* obj, String key) { 
@@ -190,6 +197,9 @@ String* get_string_for_key(struct Object* obj, String key) {
 }
 struct Object* get_object_for_key(struct Object* obj, String key) { 
     return (struct Object*)get_value_for_key(obj, key);
+}
+Array* get_array_for_key(struct Object* obj, String key) {
+    return (Array*)get_value_for_key(obj, key);
 }
 
 enum JSONType get_type_for_key(struct Object *obj, String key) {
@@ -216,7 +226,7 @@ void set_value_for_key(struct Object* obj, String key, enum JSONType type, void*
     }
 }
 
-void set_int_for_key(struct Object* obj, String key, int32_t _x) {
+void set_int32_t_for_key(struct Object* obj, String key, int32_t _x) {
     int32_t* x = malloc(sizeof(int32_t));
     *x = _x;
 
@@ -252,6 +262,66 @@ void set_object_for_key(struct Object* obj, String key, struct Object _x) {
 
     set_value_for_key(obj, key, JSON_TYPE_OBJECT, (void*)x);
 }
+void set_array_for_key(struct Object* obj, String key, Array _x) {
+    Array *x = malloc(sizeof(Array));
+    *x = copy_array(_x);
+
+    set_value_for_key(obj, key, JSON_TYPE_ARRAY, (void*)x);
+}
+
+void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
+    bool first = true;
+
+    fprintf(fp, "[");
+
+    for (size_t i = 0; i < arr.size; ++i) {
+        struct ArrayElement el = get_struct_array_element(&arr, i);
+
+        if (!first) fprintf(fp, ",");
+        else first = false;
+
+        if (indent != 0)
+            fprintf(fp, "\n");
+
+        for (size_t i = 0; i < (depth + 1) * indent; ++i)
+            fprintf(fp, " ");
+
+        switch (el.type) {
+            case JSON_TYPE_OBJECT:
+                dump_json(fp, *(struct Object*)el.value, depth + 1, indent);
+                break;
+            case JSON_TYPE_ARRAY:
+                dump_array(fp, *(Array*)el.value, depth + 1, indent);
+            case JSON_TYPE_CHAR:
+                fprintf(fp, "\"%c\"", *(char*)el.value);
+                break;
+            case JSON_TYPE_INTEGER:
+                fprintf(fp, "%d", *(int32_t*)el.value);
+                break;
+            case JSON_TYPE_LONG:
+                fprintf(fp, "%lld", *(int64_t*)el.value);
+                break;
+            case JSON_TYPE_DOUBLE:
+                fprintf(fp, "%lf", *(double*)el.value);
+                break;
+            case JSON_TYPE_STRING:
+                fprintf(fp, "\"%s\"", FMT_STRING(safe_string(*(String*)el.value)));
+                break;
+            default:
+                fprintf(stderr, "[ERROR]: NAT detected");
+                break;
+
+
+        }
+    }
+
+    if (indent != 0)
+        fprintf(fp, "\n");
+
+    for (size_t i = 0; i < depth * indent; ++i)
+        fprintf(fp, " ");
+    fprintf(fp, "]");
+}
 
 
 void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
@@ -277,6 +347,9 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
             switch (iter->NODE.type) {
                 case JSON_TYPE_OBJECT:
                     dump_json(fp, *(struct Object*)iter->NODE.value, depth + 1, indent);
+                    break;
+                case JSON_TYPE_ARRAY:
+                    dump_array(fp, *(Array*)iter->NODE.value, depth + 1, indent);
                     break;
                 case JSON_TYPE_CHAR:
                     fprintf(fp, "\"%c\"", *(char*)iter->NODE.value);

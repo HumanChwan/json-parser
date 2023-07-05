@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "String.h"
+#include "Array.h"
 
 #include "types.h"
 
@@ -44,22 +45,24 @@ enum JSONType get_type_for_key(struct Object* obj, String key);
 void* get_value_for_key(struct Object* obj, String key);
 
 // DO NOT USE THESE FUNCTIONS IF NOT SURE ABOUT THE TYPE
-int get_int_for_key(struct Object* obj, String key);
+int get_int32_t_for_key(struct Object* obj, String key);
 int64_t get_int64_t_for_key(struct Object* obj, String key);
 double get_double_for_key(struct Object* obj, String key);
 char get_char_for_key(struct Object* obj, String key);
 String* get_string_for_key(struct Object* obj, String key);
 struct Object* get_object_for_key(struct Object* obj, String key);
+Array* get_array_for_key(struct Object* obj, String key);
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
 // DO NOT USE THESE FUNCTIONS IF NOT SURE ABOUT THE TYPE
-void set_int_for_key(struct Object* obj, String key, int x);
+void set_int32_t_for_key(struct Object* obj, String key, int x);
 void set_int64_t_for_key(struct Object* obj, String key, int64_t x);
 void set_double_for_key(struct Object* obj, String key, double x);
 void set_char_for_key(struct Object* obj, String key, char x);
 void set_string_for_key(struct Object* obj, String key, String x);
 void set_object_for_key(struct Object* obj, String key, struct Object x);
+void set_array_for_key(struct Object* obj, String key, Array x);
 
 void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent);
 struct Object load_json(FILE* fp);

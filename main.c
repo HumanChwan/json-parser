@@ -1,24 +1,26 @@
 #include <stdio.h>
 
+#include "Object.h"
 #include "Array.h"
+#include "String.h"
 
 int main(void) {
+    struct Object parent = create_object();
     Array arr = create_array(5);
 
-    set_char_element(&arr, 0, 'c');
-    set_int32_t_element(&arr, 1, 1231231);
-    set_char_element(&arr, 2, 'a');
-    set_int32_t_element(&arr, 3, 100);
-    set_char_element(&arr, 4, 'b');
+    for (size_t i = 0; i < 5; ++i) {
+        struct Object obj = create_object();
+        set_string_for_key(&obj, IMM_STRING("hello"), IMM_STRING("world"));
+        set_int32_t_for_key(&obj, IMM_STRING("number"), i);
 
-    for (size_t i = 0; i < arr.size; ++i) {
-        if (i % 2 == 0) {
-            char x = get_char_element(&arr, i);
-            printf("%c, ", x);
-        } else {
-            int32_t x = get_int32_t_element(&arr, i);
-            printf("%d, ", x);
-        }
+        set_object_element(&arr, i, obj);
+
+        delete_object(obj);
     }
-    printf("\n");
+
+    set_array_for_key(&parent, IMM_STRING("array"), arr);
+    
+    FILE* fp = fopen("test.json", "w");
+
+    dump_json(fp, parent, 0, 4);
 }

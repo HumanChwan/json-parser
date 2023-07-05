@@ -1,7 +1,7 @@
 #include "Array.h"
 
-#include "Object.h"
 #include "types.h"
+#include "Object.h"
 
 #include <stdlib.h>
 
@@ -20,6 +20,17 @@ Array create_empty_array() {
 }
 
 void delete_array(Array array) {
+    for (size_t i = 0; i < array.size; ++i) {
+        if (array.a[i].type == JSON_TYPE_OBJECT)
+            delete_object(*(struct Object*)array.a[i].value);
+        else if (array.a[i].type == JSON_TYPE_STRING)
+            delete_string(*(String*)array.a[i].value);
+        else if (array.a[i].type == JSON_TYPE_ARRAY)
+            delete_array(*(Array*)array.a[i].value);
+
+        free(array.a[i].value);
+    }
+
     if (array.a != NULL)
         free(array.a);
 }
