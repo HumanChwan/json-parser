@@ -39,7 +39,7 @@ String copy_string(String s) {
 
 void append_string(String* str, String src) {
     short change = 0; 
-    while (src.size + str->size <= str->capacity) {
+    while (src.size + str->size >= str->capacity) {
         str->capacity *= STRING_M_FACTOR;
         change = 1;
     }
