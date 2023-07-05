@@ -6,9 +6,9 @@
     ```console
     $ make test
     ```
-- Run `simple_dump` program to produce `test.json`:
+- Run `fmtjson` program with command line argument as an unformatted JSON file:
     ```console
-    $ ./simple_dump.exe
+    $ ./fmtjson <FILE>
     ```
 
 ## Usage
@@ -20,12 +20,13 @@
         ```c
         void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
-        void set_int_for_key(struct Object* obj, String key, int* x);
-        void set_int64_t_for_key(struct Object* obj, String key, int64_t* x);
-        void set_double_for_key(struct Object* obj, String key, double* x);
-        void set_char_for_key(struct Object* obj, String key, char* x);
-        void set_string_for_key(struct Object* obj, String key, String* x);
-        void set_object_for_key(struct Object* obj, String key, struct Object* x);
+        void set_int_for_key(struct Object* obj, String key, int x);
+        void set_int64_t_for_key(struct Object* obj, String key, int64_t x);
+        void set_double_for_key(struct Object* obj, String key, double x);
+        void set_char_for_key(struct Object* obj, String key, char x);
+        void set_string_for_key(struct Object* obj, String key, String x);
+        void set_object_for_key(struct Object* obj, String key, struct Object x);
+        void set_array_for_key(struct Object* obj, String key, Array x);
         ```
         - PS: It is be noted that the above functions also allow modification of value for the key
 
@@ -40,6 +41,7 @@
         char get_char_for_key(struct Object* obj, String key);
         String* get_string_for_key(struct Object* obj, String key);
         struct Object* get_object_for_key(struct Object* obj, String key);
+        Array* get_array_for_key(struct Object* obj, String key);
         ```
 ### Loading and Dumping JSON (basically formatting JSON)
 
@@ -50,26 +52,26 @@
 - Compile and run the following code:
     ```c
     #include "Object.h"
-    #include "String.h"
     
     #include <stdio.h>
 
     int main(void) {
-        FILE* rfp = fopen("unformatted.json", "r");
-        FILE* wfp = fopen("formatted.json", "w");
+        FILE* fp = fopen("unformatted.json", "r");
+        struct Object obj = load_json(fp);
+        fclose(fp)
 
-        struct Object obj = load_json(rfp);
-
-        dump_json(wfp, obj, 0,     4);
+        fp = fopen("unformatted.json", "w");
+        dump_json(fp, obj, 0,     4);
         //                  ^      ^
         //                depth  indent
+        fclose(fp);
     }
     ```
     ```console
     $ gcc -o main main.c String.c Object.c
     $ ./main
     ```
-- Find the new file `formatted.json`:
+- Find the file `unformatted.json`:
     ```json
     {
         "name": "Dinesh Chukkala",
@@ -129,5 +131,5 @@
     // Open a file with write mode
     FILE* fp = fopen("test.json", "w");
 
-    dump_json(obj, fp);
+    dump_json(dp, obj, 0, 4);
     ```

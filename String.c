@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,13 +55,15 @@ void append_string(String* str, String src) {
 }
 
 void append_char_to_string(String* str, char c) {
-    if (1 + str->size <= str->capacity) {
+    if (1 + str->size >= str->capacity) {
         str->capacity *= STRING_M_FACTOR;
         str->s = realloc(str->s, str->capacity);
     }
 
-    if (str->s == NULL)
+    if (str->s == NULL) {
+        fprintf(stderr, "[ERROR]: Buy RAM lol\n");
         exit(1);
+    }
 
     str->s[str->size] = c;
     str->s[++str->size] = '\0';
