@@ -89,6 +89,35 @@ bool string_equals(String a, String b) {
 
 String safe_string(String s) {
     // TODO: Implement some algorithm which escapes weird characters.
-    return s;
+    String safe = create_empty_string();
+    for (size_t i = 0; i < s.size; ++i) {
+        char c = s.s[i];
+        switch (c) {
+            case '\\':
+                append_char_to_string(&safe, '\\');
+                break;
+            case '"':
+                append_c_string(&safe, "\\\"");
+                break;
+            case '\n':
+                append_c_string(&safe, "\\n");
+                break;
+            case '\b':
+                append_c_string(&safe, "\\b");
+                break;
+            case '\f':
+                append_c_string(&safe, "\\f");
+                break;
+            case '\r': 
+                append_c_string(&safe, "\\r");
+                break;
+            case '\t':
+                append_c_string(&safe, "\\t");
+                break;
+            default:
+                append_char_to_string(&safe, c);
+        }
+    }
+    return safe;
 }
 

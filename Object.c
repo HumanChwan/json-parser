@@ -304,9 +304,12 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
             case JSON_TYPE_DOUBLE:
                 fprintf(fp, "%lf", *(double*)el.value);
                 break;
-            case JSON_TYPE_STRING:
-                fprintf(fp, "\"%s\"", FMT_STRING(safe_string(*(String*)el.value)));
+            case JSON_TYPE_STRING: {
+                String safe = safe_string(*(String*)el.value);
+                fprintf(fp, "\"%s\"", FMT_STRING(safe));
+                delete_string(safe);
                 break;
+            }
             default:
                 fprintf(stderr, "[ERROR]: NAT detected");
                 break;
@@ -342,7 +345,11 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
             for (size_t i = 0; i < (depth + 1) * indent; ++i)
                 fprintf(fp, " ");
 
-            fprintf(fp, "\"%s\": ", FMT_STRING(safe_string(iter->NODE.key)));
+            {
+                String safe = safe_string(iter->NODE.key);
+                fprintf(fp, "\"%s\": ", FMT_STRING(safe));
+                delete_string(safe);
+            }
 
             switch (iter->NODE.type) {
                 case JSON_TYPE_OBJECT:
@@ -363,9 +370,12 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
                 case JSON_TYPE_DOUBLE:
                     fprintf(fp, "%lf", *(double*)iter->NODE.value);
                     break;
-                case JSON_TYPE_STRING:
-                    fprintf(fp, "\"%s\"", FMT_STRING(safe_string(*(String*)iter->NODE.value)));
+                case JSON_TYPE_STRING: {
+                    String safe = safe_string(*(String*)iter->NODE.value);
+                    fprintf(fp, "\"%s\"", FMT_STRING(safe));
+                    delete_string(safe);
                     break;
+               }
                 default:
                     fprintf(stderr, "[ERROR]: NAT detected");
                     break;
@@ -395,8 +405,19 @@ String load_string(FILE* fp) {
     char c;
     for (c = fgetc(fp); c != EOF; c = fgetc(fp)) {
         if (escape_init) {
-            // TODO: actually escape the characters
+            if (c == 'n') append_char_to_string(&key, '\n');
+            else if (c == 'b') append_char_to_string(&key, '\b');
+            else if (c == 't') append_char_to_string (&key, '\t');
+            else if (c == 'f') append_char_to_string(&key, '\f');
+            else if (c == 'r') append_char_to_string(&key, '\r');
+            else if (c == '\\') append_char_to_string(&key, '\\');
+            else if (c == '"') append_char_to_string(&key, '"');
+            else {
+                append_char_to_string(&key, '\\');
+                append_char_to_string(&key, c);
+            }
             escape_init = false;
+            continue;
         } else if (c == '\\') {
             escape_init = true;
             continue;
@@ -432,7 +453,13 @@ struct ArrayElement load_value(FILE* fp, char first_char) {
     } else {
         double num = 0;
         bool got_decimal = false;
-        double decimal_factor = 0.1;
+        bool negative = false;
+        double DECIMAL_FACTOR = 0.1;
+
+        if (first_char == '-') {
+            assert(fgetc(fp) == '-' && "[ERROR]: Wow, that was definitely not expected\n");
+            negative = true;
+        }
 
         for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
             if (c == '.') {
@@ -449,13 +476,15 @@ struct ArrayElement load_value(FILE* fp, char first_char) {
             short dig = c - '0';
 
             if (got_decimal) {
-                num += dig * decimal_factor;
-                decimal_factor /= 10.;
+                num += dig * DECIMAL_FACTOR;
+                DECIMAL_FACTOR /= 10.;
             } else {
                 num *= 10;
                 num += dig;
             }
         }
+
+        if (negative) num *= -1.;
 
         if (got_decimal) {
             // DOUBLE

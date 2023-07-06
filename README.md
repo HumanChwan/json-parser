@@ -20,7 +20,7 @@
         ```c
         void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
-        void set_int_for_key(struct Object* obj, String key, int x);
+        void set_int32_t_for_key(struct Object* obj, String key, int x);
         void set_int64_t_for_key(struct Object* obj, String key, int64_t x);
         void set_double_for_key(struct Object* obj, String key, double x);
         void set_char_for_key(struct Object* obj, String key, char x);
@@ -35,7 +35,7 @@
         void* get_value_for_key(struct Object* obj, String key);
 
         // DO NOT USE THESE FUNCTIONS IF NOT SURE ABOUT THE TYPE
-        int get_int_for_key(struct Object* obj, String key);
+        int get_int32_t_for_key(struct Object* obj, String key);
         int64_t get_int64_t_for_key(struct Object* obj, String key);
         double get_double_for_key(struct Object* obj, String key);
         char get_char_for_key(struct Object* obj, String key);
@@ -62,13 +62,13 @@
 
         fp = fopen("unformatted.json", "w");
         dump_json(fp, obj, 0,     4);
-        //                  ^      ^
-        //                depth  indent
+        //                 ^      ^
+        //               depth  indent
         fclose(fp);
     }
     ```
     ```console
-    $ gcc -o main main.c String.c Object.c
+    $ gcc -o main main.c String.c Object.c Array.c
     $ ./main
     ```
 - Find the file `unformatted.json`:
