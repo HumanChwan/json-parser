@@ -88,13 +88,12 @@ bool string_equals(String a, String b) {
 }
 
 String safe_string(String s) {
-    // TODO: Implement some algorithm which escapes weird characters.
     String safe = create_empty_string();
     for (size_t i = 0; i < s.size; ++i) {
         char c = s.s[i];
         switch (c) {
             case '\\':
-                append_char_to_string(&safe, '\\');
+                append_c_string(&safe, "\\\\");
                 break;
             case '"':
                 append_c_string(&safe, "\\\"");
