@@ -505,6 +505,7 @@ struct Element load_value(FILE* fp, char first_char) {
                     exit(1);
                 }
                 got_decimal = true;
+                continue;
             } else if (!isdigit(c)) {
                 (void)fseek(fp, -1L, SEEK_CUR);
                 break;
