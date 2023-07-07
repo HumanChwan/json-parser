@@ -5,18 +5,18 @@
 
 #include <stdlib.h>
 
-Array create_array_from_stack(size_t size, struct ArrayElement* arr) {
+Array create_array_from_stack(size_t size, struct Element* arr) {
     return (Array){.size=size, .capacity=size, .a=arr};
 }
 
 Array create_array(size_t size) {
-    struct ArrayElement* arr = malloc(sizeof(struct ArrayElement) * size);
+    struct Element* arr = malloc(sizeof(struct Element) * size);
 
     return (Array){.size=size, .capacity=size, .a=arr};
 }
 
 Array create_empty_array() {
-    struct ArrayElement* arr = malloc(sizeof(struct ArrayElement) * ARRAY_INIT_CAPACITY);
+    struct Element* arr = malloc(sizeof(struct Element) * ARRAY_INIT_CAPACITY);
 
     return (Array){.size=0, .capacity=ARRAY_INIT_CAPACITY, .a=arr};
 }
@@ -37,8 +37,8 @@ void delete_array(Array array) {
         free(array.a);
 }
 
-struct ArrayElement copy_array_element(struct ArrayElement element) {
-    struct ArrayElement copy_element = element;
+struct Element copy_array_element(struct Element element) {
+    struct Element copy_element = element;
     void* value = NULL;
     switch(element.type) {
         case JSON_TYPE_OBJECT: {
@@ -88,7 +88,7 @@ struct ArrayElement copy_array_element(struct ArrayElement element) {
 }
 
 Array copy_array(Array other) {
-    struct ArrayElement* arr = malloc(sizeof(struct ArrayElement) * other.capacity);
+    struct Element* arr = malloc(sizeof(struct Element) * other.capacity);
 
     Array new_array = other;
     new_array.a = arr;
@@ -100,7 +100,7 @@ Array copy_array(Array other) {
     return new_array;
 }
 
-struct ArrayElement get_struct_array_element(Array* array, size_t index) {
+struct Element get_struct_array_element(Array* array, size_t index) {
     if (index >= array->size) {
         fprintf(stderr, "Array overbound access tried. Aborting\n");
         exit(1);
@@ -109,27 +109,27 @@ struct ArrayElement get_struct_array_element(Array* array, size_t index) {
     return array->a[index];
 }
 char get_char_element(Array *array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(char*)el.value;
 }
 int32_t get_int32_t_element(Array *array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(int32_t*)el.value;
 }
 int64_t get_int64_t_element(Array *array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(int64_t*)el.value;
 }
 String get_string_element(Array *array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(String*)el.value;
 }
 struct Object get_object_element(Array *array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(struct Object*)el.value;
 }
 Array get_array_element(Array* array, size_t index) {
-    struct ArrayElement el = get_struct_array_element(array, index);
+    struct Element el = get_struct_array_element(array, index);
     return *(Array*)el.value;
 }
 
@@ -144,7 +144,7 @@ void array_push_back(Array *array, enum JSONType type, void* value) {
         exit(1);
     }
 
-    array->a[array->size++] = (struct ArrayElement){type, value};
+    array->a[array->size++] = (struct Element){type, value};
 }
 void array_char_push_back(Array *array, char _x) {
     char* x = malloc(sizeof(char));
@@ -190,7 +190,7 @@ void set_struct_array_element(Array* array, size_t index, enum JSONType type, vo
         exit(1);
     }
 
-    array->a[index] = copy_array_element((struct ArrayElement){type, value});
+    array->a[index] = copy_array_element((struct Element){type, value});
 }
 void set_char_element(Array *array, size_t index, char x) {
     set_struct_array_element(array, index, JSON_TYPE_CHAR, (void*)&x);

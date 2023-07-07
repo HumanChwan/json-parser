@@ -121,8 +121,14 @@ struct Object copy_object(struct Object obj) {
                 case JSON_TYPE_ARRAY:
                     set_array_for_key(&ret, iter->NODE.key, *(Array*)iter->NODE.value);
                     break;
+                case JSON_TYPE_BOOLEAN:
+                    set_bool_for_key(&ret, iter->NODE.key, *(bool*)iter->NODE.value);
+                    break;
+                case JSON_TYPE_NULL:
+                    set_null_for_key(&ret, iter->NODE.key);
+                    break;
                 default:
-                    fprintf(stderr, "[ERROR]: Encountered JSON_TYPE_NAT or others");
+                    fprintf(stderr, "[ERROR]: Encountered NAT or others");
                     exit(1);
                     break;
             }
@@ -202,6 +208,9 @@ struct Object* get_object_for_key(struct Object* obj, String key) {
 Array* get_array_for_key(struct Object* obj, String key) {
     return (Array*)get_value_for_key(obj, key);
 }
+bool get_bool_for_key(struct Object* obj, String key) {
+    return *(bool*)get_value_for_key(obj, key);
+}
 
 enum JSONType get_type_for_key(struct Object *obj, String key) {
     struct KeyValuePair* kvp = get_kvp_for_key(obj, key);
@@ -267,24 +276,17 @@ void set_array_for_key(struct Object* obj, String key, Array _x) {
 
     set_value_for_key(obj, key, JSON_TYPE_ARRAY, (void*)x);
 }
+void set_bool_for_key(struct Object* obj, String key, bool _x) {
+    bool *x = malloc(sizeof(bool));
+    *x = _x;
 
-void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
-    bool first = true;
+    set_value_for_key(obj, key, JSON_TYPE_BOOLEAN, (void*)x);
+}
+void set_null_for_key(struct Object* obj, String key) {
+    set_value_for_key(obj, key, JSON_TYPE_NULL, NULL);
+}
 
-    fprintf(fp, "[");
-
-    for (size_t i = 0; i < arr.size; ++i) {
-        struct ArrayElement el = get_struct_array_element(&arr, i);
-
-        if (!first) fprintf(fp, ",");
-        else first = false;
-
-        if (indent != 0)
-            fprintf(fp, "\n");
-
-        for (size_t i = 0; i < (depth + 1) * indent; ++i)
-            fprintf(fp, " ");
-
+void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
         switch (el.type) {
             case JSON_TYPE_OBJECT:
                 dump_json(fp, *(struct Object*)el.value, depth + 1, indent);
@@ -310,12 +312,38 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
                 delete_string(safe);
                 break;
             }
+            case JSON_TYPE_BOOLEAN:
+                fprintf(fp, "%s", *(bool*)el.value ? "true" : "false");
+                break;
+            case JSON_TYPE_NULL:
+                fprintf(fp, "null");
+                break;
             default:
                 fprintf(stderr, "[ERROR]: NAT detected");
                 break;
 
 
         }
+}
+
+void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
+    bool first = true;
+
+    fprintf(fp, "[");
+
+    for (size_t i = 0; i < arr.size; ++i) {
+        struct Element el = get_struct_array_element(&arr, i);
+
+        if (!first) fprintf(fp, ",");
+        else first = false;
+
+        if (indent != 0)
+            fprintf(fp, "\n");
+
+        for (size_t i = 0; i < (depth + 1) * indent; ++i)
+            fprintf(fp, " ");
+        
+        dump_value(fp, el, depth, indent);
     }
 
     if (indent != 0)
@@ -351,36 +379,7 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
                 delete_string(safe);
             }
 
-            switch (iter->NODE.type) {
-                case JSON_TYPE_OBJECT:
-                    dump_json(fp, *(struct Object*)iter->NODE.value, depth + 1, indent);
-                    break;
-                case JSON_TYPE_ARRAY:
-                    dump_array(fp, *(Array*)iter->NODE.value, depth + 1, indent);
-                    break;
-                case JSON_TYPE_CHAR:
-                    fprintf(fp, "\"%c\"", *(char*)iter->NODE.value);
-                    break;
-                case JSON_TYPE_INTEGER:
-                    fprintf(fp, "%d", *(int32_t*)iter->NODE.value);
-                    break;
-                case JSON_TYPE_LONG:
-                    fprintf(fp, "%lld", *(int64_t*)iter->NODE.value);
-                    break;
-                case JSON_TYPE_DOUBLE:
-                    fprintf(fp, "%lf", *(double*)iter->NODE.value);
-                    break;
-                case JSON_TYPE_STRING: {
-                    String safe = safe_string(*(String*)iter->NODE.value);
-                    fprintf(fp, "\"%s\"", FMT_STRING(safe));
-                    delete_string(safe);
-                    break;
-               }
-                default:
-                    fprintf(stderr, "[ERROR]: NAT detected");
-                    break;
-            }
-
+            dump_value(fp, (struct Element){iter->NODE.type, iter->NODE.value}, depth, indent);
 
             iter = iter->NEXT;
         }
@@ -436,20 +435,58 @@ String load_string(FILE* fp) {
     return key;
 }
 
-struct ArrayElement load_value(FILE* fp, char first_char) {
+bool literal_check(FILE* fp, const char* literal, size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        if (fgetc(fp) != literal[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+struct Element load_value(FILE* fp, char first_char) {
     // here the first character which would be gotten would not be space-like char. 
     if (first_char == '{') {
         struct Object *value = malloc(sizeof(struct Object));
         *value = load_json(fp);
-        return (struct ArrayElement){JSON_TYPE_OBJECT, (void*)value};
+        return (struct Element){JSON_TYPE_OBJECT, (void*)value};
     } else if (first_char == '[') {
         Array *value = malloc(sizeof(Array));
         *value = load_array(fp);
-        return (struct ArrayElement){JSON_TYPE_ARRAY, (void*)value};
+        return (struct Element){JSON_TYPE_ARRAY, (void*)value};
     } else if (first_char == '"') {
         String *value = malloc(sizeof(String));
         *value = load_string(fp);
-        return (struct ArrayElement){JSON_TYPE_STRING, (void*)value};
+        return (struct Element){JSON_TYPE_STRING, (void*)value};
+    } else if (first_char == 'f') {
+        // This must be the literal `false`
+        if (!literal_check(fp, "false", 5)) {
+            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            exit(1);
+        }
+
+        bool* value = malloc(sizeof(bool));
+        *value = false;
+        return (struct Element){JSON_TYPE_BOOLEAN, (void*)value};
+    } else if (first_char == 't') {
+        // This must be the literal `true`
+        if (!literal_check(fp, "true", 4)) {
+            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            exit(1);
+        }
+
+        bool* value = malloc(sizeof(bool));
+        *value = true;
+        return (struct Element){JSON_TYPE_BOOLEAN, (void*)value};
+    } else if (first_char == 'n') {
+        // This must be the literal `null`
+        if (!literal_check(fp, "null", 4)) {
+            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            exit(1);
+        }
+
+        return (struct Element){JSON_TYPE_NULL, NULL};
     } else {
         double num = 0;
         bool got_decimal = false;
@@ -491,13 +528,13 @@ struct ArrayElement load_value(FILE* fp, char first_char) {
             double *value = malloc(sizeof(double));
             *value = num;
 
-            return (struct ArrayElement){JSON_TYPE_DOUBLE, (void*)value};
+            return (struct Element){JSON_TYPE_DOUBLE, (void*)value};
         } else {
             // LONG LONG
             int64_t* value = malloc(sizeof(int64_t));
             *value = num;
 
-            return (struct ArrayElement){JSON_TYPE_LONG, (void*)value};
+            return (struct Element){JSON_TYPE_LONG, (void*)value};
         }
     }
 }
@@ -525,7 +562,7 @@ Array load_array(FILE* fp) {
                 break;
             case ELEMENT_START:
                 (void)fseek(fp, -1L, SEEK_CUR);
-                struct ArrayElement el = load_value(fp, c);
+                struct Element el = load_value(fp, c);
                 array_push_back(&array, el.type, el.value);
 
                 status = ELEMENT_END;
@@ -600,7 +637,7 @@ struct Object load_json(FILE *fp) {
                 break;
             case VALUE_START:
                 (void)fseek(fp, -1L, SEEK_CUR);
-                struct ArrayElement el = load_value(fp, c);
+                struct Element el = load_value(fp, c);
                 set_value_for_key(&obj, key, el.type, el.value);
                 status = VALUE_END;
                 break;

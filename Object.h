@@ -23,6 +23,11 @@ struct KeyValuePair {
     void *value;
 };
 
+struct Element {
+    enum JSONType type;
+    void *value;
+};
+
 struct NodeKVP {
     struct KeyValuePair NODE; 
     struct NodeKVP* NEXT;
@@ -52,6 +57,7 @@ char get_char_for_key(struct Object* obj, String key);
 String* get_string_for_key(struct Object* obj, String key);
 struct Object* get_object_for_key(struct Object* obj, String key);
 Array* get_array_for_key(struct Object* obj, String key);
+bool get_bool_for_key(struct Object* obj, String key);
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
@@ -63,9 +69,16 @@ void set_char_for_key(struct Object* obj, String key, char x);
 void set_string_for_key(struct Object* obj, String key, String x);
 void set_object_for_key(struct Object* obj, String key, struct Object x);
 void set_array_for_key(struct Object* obj, String key, Array x);
+void set_bool_for_key(struct Object* obj, String key, bool x);
+void set_null_for_key(struct Object* obj, String key);
 
 void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent);
-Array load_array(FILE* fp);
 struct Object load_json(FILE* fp);
+
+void dump_array(FILE* fp, Array arr, size_t depth, size_t indent);
+Array load_array(FILE* fp);
+
+void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent);
+struct Element load_value(FILE* fp, char first_char);
 
 #endif // JSON_PARSER_OBJECT_

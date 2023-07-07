@@ -7,24 +7,20 @@
 #include "types.h"
 #include "String.h"
 struct Object;
+struct Element;
 
 #define ARRAY_INIT_CAPACITY 128
 #define ARRAY_M_FACTOR 2
 
-struct ArrayElement {
-    enum JSONType type;
-    void* value;
-};
-
 struct Array {
-    struct ArrayElement* a;
+    struct Element* a;
     size_t size, capacity;
 };
 
 typedef struct Array Array;
 
 
-Array create_array_from_stack(size_t size, struct ArrayElement* arr);
+Array create_array_from_stack(size_t size, struct Element* arr);
 Array create_array(size_t size);
 Array create_empty_array();
 
@@ -32,7 +28,7 @@ void delete_array(Array array);
 
 Array copy_array(Array other);
 
-struct ArrayElement get_struct_array_element(Array* array, size_t index);
+struct Element get_struct_array_element(Array* array, size_t index);
 char get_char_element(Array *array, size_t index);
 int32_t get_int32_t_element(Array *array, size_t index);
 int64_t get_int64_t_element(Array *array, size_t index);
