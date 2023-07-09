@@ -5,7 +5,7 @@
 #include <string.h>
 
 void usage(void) {
-    printf("USAGE:\n\tfmtjson FILE\n\tFILE: a json file");
+    printf("USAGE:\n\tfmtjson FILE\n\tFILE: a json file\n");
 }
 
 int main(int argc, char** argv) {
@@ -19,13 +19,13 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-    FILE* fp = fopen(argv[1], "r");
+    FILE* fp = fopen(argv[1], "rb+");
     struct Element el = load_json(fp);
     fclose(fp);
 
     printf("Read and parsed `%s`\n", argv[1]);
 
-    fp = fopen(argv[1], "w");
+    fp = fopen(argv[1], "wb+");
     dump_json(fp, el, 2);
     fclose(fp);
 }

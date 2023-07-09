@@ -13,7 +13,7 @@
 #include <assert.h>
 
 // #define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col)
-#define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col)
+#define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col + 1)
 
 size_t row, col;
 
@@ -95,40 +95,50 @@ struct Object create_object() {
     // Setting all elements to NULL just in case.
     for (size_t i = 0; i < HASHMAP_INIT_SIZE; ++i) arr[i] = NULL;
 
-    return (struct Object){.arr=arr, .arr_size=HASHMAP_INIT_SIZE, .element_count=0, ._count=0};
+    return (struct Object){
+        .arr=arr,
+        .arr_size=HASHMAP_INIT_SIZE,
+        .element_count=0,
+        ._count=0,
+        ._iter=-1,
+        ._ordered=NULL
+    };
 }
 
 int _compare_kvp(const void* _A, const void* _B) {
     struct KeyValuePair *A = (struct KeyValuePair*)_A, *B = (struct KeyValuePair*)_B;
-    return B->_stamp - A->_stamp;
+    return A->_stamp - B->_stamp;
 }
 struct KeyValuePair* next_element(struct Object* obj) {
-    static struct KeyValuePair* ordered = NULL, *iter = NULL;
-    static struct Object* _obj = NULL;
+    if (obj->_iter != -1) {
+        obj->_iter++;
+        if (obj->_iter == (int32_t)obj->element_count) {
+            free(obj->_ordered);
+            obj->_ordered = NULL;
+            obj->_iter = -1;
 
-    if (iter != NULL && obj == _obj) {
-        iter++;
-        if (iter == NULL) {
-            free(ordered);
-            ordered = NULL;
+            return NULL;
         }
     } else {
-        _obj = obj; 
-        ordered = malloc(sizeof(struct KeyValuePair) * obj->element_count);
+        if (obj->element_count == 0)
+            return NULL;
+        obj->_ordered = malloc(sizeof(struct KeyValuePair) * obj->element_count);
+
         size_t idx = 0;
         for (size_t i = 0; i < obj->arr_size; ++i) {
             struct NodeKVP* node_iter = obj->arr[i];
 
             while (node_iter != NULL) {
-                ordered[idx++] = node_iter->NODE;
+                obj->_ordered[idx++] = node_iter->NODE;
                 node_iter = node_iter->NEXT;
             }
         }
-        qsort(ordered, obj->element_count, sizeof(struct KeyValuePair), _compare_kvp);
-        iter = ordered;
+        assert(idx == obj->element_count && "Total elements must be equal to element_count");
+        qsort(obj->_ordered, obj->element_count, sizeof(struct KeyValuePair), _compare_kvp);
+        obj->_iter = 0;
     }
 
-    return iter;
+    return &obj->_ordered[obj->_iter];
 }
 
 struct Object copy_object(struct Object obj) {
@@ -370,6 +380,7 @@ void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
                 break;
             default:
                 ERROR("NAT detected");
+                exit(1);
                 break;
 
 
@@ -410,29 +421,23 @@ void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
 
     fprintf(fp, "{");
 
-    for (size_t i = 0; i < obj.arr_size; ++i) {
-        struct NodeKVP* iter = obj.arr[i];
+    for (struct KeyValuePair *iter = next_element(&obj); iter != NULL; iter = next_element(&obj)) {
+        if (!first) fprintf(fp, ",");
+        else first = false;
 
-        while (iter != NULL) {
-            if (!first) fprintf(fp, ",");
-            else first = false;
+        if (indent != 0)
+            fprintf(fp, "\n");
 
-            if (indent != 0)
-                fprintf(fp, "\n");
+        for (size_t i = 0; i < (depth + 1) * indent; ++i)
+            fprintf(fp, " ");
 
-            for (size_t i = 0; i < (depth + 1) * indent; ++i)
-                fprintf(fp, " ");
-
-            {
-                String safe = safe_string(iter->NODE.key);
-                fprintf(fp, "\"%s\": ", FMT_STRING(safe));
-                delete_string(safe);
-            }
-
-            dump_value(fp, iter->NODE.element, depth, indent);
-
-            iter = iter->NEXT;
+        {
+            String safe = safe_string(iter->key);
+            fprintf(fp, "\"%s\": ", FMT_STRING(safe));
+            delete_string(safe);
         }
+
+        dump_value(fp, iter->element, depth, indent);
     }
 
     if (indent != 0)
@@ -446,7 +451,10 @@ void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
 String load_string(FILE* fp) {
     // first character is always '"'
     
-    assert(fgetc(fp) == '"' && "Key string must have the first character as \".");
+    if (fgetc(fp) != '"') {
+        ERROR("String should have started with `\"` character.");
+        exit(1);
+    }
     ack_read('"');
 
     String key = create_empty_string(); 
@@ -764,7 +772,8 @@ struct Object load_object(FILE *fp) {
 }
 
 void dump_json(FILE* fp, struct Element el, size_t indent) {
-    dump_value(fp, el, 0, indent);
+    reset_read();
+    dump_value(fp, el, -1, indent);
 }
 
 struct Element load_json(FILE* fp) { 

@@ -16,9 +16,8 @@ simple_dump: tests/simple_dump.c $(DEPS)
 fmtjson: tests/fmtjson.c $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-
 clean:
 	rm fmtjson simple_dump main
 
 
-.PHONY: all clean
+.PHONY: all clean test

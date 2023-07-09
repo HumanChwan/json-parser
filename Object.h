@@ -37,6 +37,10 @@ struct Object {
     struct NodeKVP** arr;
     size_t element_count, arr_size;
     size_t _count;
+
+    // ITERATION fields
+    struct KeyValuePair* _ordered;
+    int32_t _iter; 
 };
 
 // To be used by user, "API"
@@ -49,7 +53,6 @@ void delete_object(struct Object obj);
  * It must not be used to partially iterate over hashmap.
  *
  * This function allows for a insertion(/updation) order traversal.
- * Do not use this function simultaneously for two or more objects.
  */
 struct KeyValuePair* next_element(struct Object* obj);
 
