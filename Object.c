@@ -82,7 +82,40 @@ struct Object create_object() {
     // Setting all elements to NULL just in case.
     for (size_t i = 0; i < HASHMAP_INIT_SIZE; ++i) arr[i] = NULL;
 
-    return (struct Object){.arr=arr, .arr_size=HASHMAP_INIT_SIZE, .element_count=0};
+    return (struct Object){.arr=arr, .arr_size=HASHMAP_INIT_SIZE, .element_count=0, ._count=0};
+}
+
+int _compare_kvp(const void* _A, const void* _B) {
+    struct KeyValuePair *A = (struct KeyValuePair*)_A, *B = (struct KeyValuePair*)_B;
+    return B->_stamp - A->_stamp;
+}
+struct KeyValuePair* next_element(struct Object* obj) {
+    static struct KeyValuePair* ordered = NULL, *iter = NULL;
+    static struct Object* _obj = NULL;
+
+    if (iter != NULL && obj == _obj) {
+        iter++;
+        if (iter == NULL) {
+            free(ordered);
+            ordered = NULL;
+        }
+    } else {
+        _obj = obj; 
+        ordered = malloc(sizeof(struct KeyValuePair) * obj->element_count);
+        size_t idx = 0;
+        for (size_t i = 0; i < obj->arr_size; ++i) {
+            struct NodeKVP* node_iter = obj->arr[i];
+
+            while (node_iter != NULL) {
+                ordered[idx++] = node_iter->NODE;
+                node_iter = node_iter->NEXT;
+            }
+        }
+        qsort(ordered, obj->element_count, sizeof(struct KeyValuePair), _compare_kvp);
+        iter = ordered;
+    }
+
+    return iter;
 }
 
 struct Object copy_object(struct Object obj) {
@@ -98,31 +131,33 @@ struct Object copy_object(struct Object obj) {
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
 
+        struct Element element = iter->NODE.element;
+
         while (iter != NULL) {
-            switch (iter->NODE.type) {
+            switch (element.type) {
                 case JSON_TYPE_INTEGER:
-                    set_int32_t_for_key(&ret, iter->NODE.key, *(int*)iter->NODE.value);
+                    set_int32_t_for_key(&ret, iter->NODE.key, *(int*)element.value);
                     break;
                 case JSON_TYPE_LONG:
-                    set_int64_t_for_key(&ret, iter->NODE.key, *(int64_t*)iter->NODE.value);
+                    set_int64_t_for_key(&ret, iter->NODE.key, *(int64_t*)element.value);
                     break;
                 case JSON_TYPE_CHAR:
-                    set_char_for_key(&ret, iter->NODE.key, *(char*)iter->NODE.value);
+                    set_char_for_key(&ret, iter->NODE.key, *(char*)element.value);
                     break;
                 case JSON_TYPE_DOUBLE:
-                    set_double_for_key(&ret, iter->NODE.key, *(double*)iter->NODE.value);
+                    set_double_for_key(&ret, iter->NODE.key, *(double*)element.value);
                     break;
                 case JSON_TYPE_STRING:
-                    set_string_for_key(&ret, iter->NODE.key, *(String*)iter->NODE.value);
+                    set_string_for_key(&ret, iter->NODE.key, *(String*)element.value);
                     break;
                 case JSON_TYPE_OBJECT:
-                    set_object_for_key(&ret, iter->NODE.key, *(struct Object*)iter->NODE.value);
+                    set_object_for_key(&ret, iter->NODE.key, *(struct Object*)element.value);
                     break;
                 case JSON_TYPE_ARRAY:
-                    set_array_for_key(&ret, iter->NODE.key, *(Array*)iter->NODE.value);
+                    set_array_for_key(&ret, iter->NODE.key, *(Array*)element.value);
                     break;
                 case JSON_TYPE_BOOLEAN:
-                    set_bool_for_key(&ret, iter->NODE.key, *(bool*)iter->NODE.value);
+                    set_bool_for_key(&ret, iter->NODE.key, *(bool*)element.value);
                     break;
                 case JSON_TYPE_NULL:
                     set_null_for_key(&ret, iter->NODE.key);
@@ -143,18 +178,20 @@ void delete_object(struct Object obj) {
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
 
+        struct Element element = iter->NODE.element;
+
         while (iter != NULL) {
-            if (iter->NODE.type == JSON_TYPE_OBJECT)
-                delete_object(*(struct Object*)iter->NODE.value);
-            else if (iter->NODE.type == JSON_TYPE_STRING)
-                delete_string(*(String*)iter->NODE.value);
-            else if (iter->NODE.type == JSON_TYPE_ARRAY)
-                delete_array(*(Array*)iter->NODE.value);
+            if (element.type == JSON_TYPE_OBJECT)
+                delete_object(*(struct Object*)element.value);
+            else if (element.type == JSON_TYPE_STRING)
+                delete_string(*(String*)element.value);
+            else if (element.type == JSON_TYPE_ARRAY)
+                delete_array(*(Array*)element.value);
             
             struct NodeKVP* temp = iter->NEXT;
 
-            if (iter->NODE.value != NULL)
-                free(iter->NODE.value);
+            if (element.value != NULL)
+                free(element.value);
 
             free(iter);
 
@@ -184,7 +221,7 @@ struct KeyValuePair* get_kvp_for_key(struct Object *obj, String key) {
 void* get_value_for_key(struct Object* obj, String key) {
     struct KeyValuePair* kvp = get_kvp_for_key(obj, key);
 
-    return (kvp != NULL ? kvp->value : NULL);
+    return (kvp != NULL ? kvp->element.value : NULL);
 }
 
 int get_int32_t_for_key(struct Object* obj, String key) { 
@@ -215,7 +252,7 @@ bool get_bool_for_key(struct Object* obj, String key) {
 enum JSONType get_type_for_key(struct Object *obj, String key) {
     struct KeyValuePair* kvp = get_kvp_for_key(obj, key);
 
-    return (kvp != NULL ? kvp->type : JSON_TYPE_NAT);
+    return (kvp != NULL ? kvp->element.type : JSON_TYPE_NAT);
 }
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value) {
@@ -223,7 +260,7 @@ void set_value_for_key(struct Object* obj, String key, enum JSONType type, void*
     size_t index = hash & (obj->arr_size - 1);
 
     struct NodeKVP* node = malloc(sizeof(struct NodeKVP));
-    node->NODE = (struct KeyValuePair){copy_string(key), type, value};
+    node->NODE = (struct KeyValuePair){copy_string(key), (struct Element){type, value}, ._stamp=obj->_count++};
     node->NEXT = NULL;
 
     _add_to_index(obj->arr, index, node);
@@ -379,7 +416,7 @@ void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
                 delete_string(safe);
             }
 
-            dump_value(fp, (struct Element){iter->NODE.type, iter->NODE.value}, depth, indent);
+            dump_value(fp, iter->NODE.element, depth, indent);
 
             iter = iter->NEXT;
         }

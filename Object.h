@@ -17,15 +17,15 @@
 
 #define REHASH_FACTOR 0.75f
 
-struct KeyValuePair {
-    String key;    
+struct Element {
     enum JSONType type;
     void *value;
 };
 
-struct Element {
-    enum JSONType type;
-    void *value;
+struct KeyValuePair {
+    String key;    
+    struct Element element;
+    size_t _stamp; // Insertion/updation order stamp
 };
 
 struct NodeKVP {
@@ -36,11 +36,22 @@ struct NodeKVP {
 struct Object {
     struct NodeKVP** arr;
     size_t element_count, arr_size;
+    size_t _count;
 };
 
 // To be used by user, "API"
 struct Object create_object();
 void delete_object(struct Object obj);
+
+/*
+ * WARNING:
+ * This function has an amortized complexity of O(1).
+ * It must not be used to partially iterate over hashmap.
+ *
+ * This function allows for a insertion(/updation) order traversal.
+ * Do not use this function simultaneously for two or more objects.
+ */
+struct KeyValuePair* next_element(struct Object* obj);
 
 struct Object copy_object(struct Object obj);
 
@@ -61,7 +72,6 @@ bool get_bool_for_key(struct Object* obj, String key);
 
 void set_value_for_key(struct Object* obj, String key, enum JSONType type, void* value);
 
-// DO NOT USE THESE FUNCTIONS IF NOT SURE ABOUT THE TYPE
 void set_int32_t_for_key(struct Object* obj, String key, int x);
 void set_int64_t_for_key(struct Object* obj, String key, int64_t x);
 void set_double_for_key(struct Object* obj, String key, double x);

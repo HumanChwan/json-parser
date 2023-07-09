@@ -6,6 +6,7 @@
 
 #include "types.h"
 #include "String.h"
+
 struct Object;
 struct Element;
 
