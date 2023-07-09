@@ -21,6 +21,7 @@ String create_string_from_stack(char *s) {
 
 String create_empty_string() {
     char* new_str = malloc(sizeof(char) * STRING_INIT_CAPACITY);
+    new_str[0] = '\0';
     return (String){.size=0, .capacity=STRING_INIT_CAPACITY, .s=new_str};
 }
 
