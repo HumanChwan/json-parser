@@ -18,5 +18,5 @@ int main(void) {
 
     FILE* fp = fopen("test.json", "w");
 
-    dump_json(fp, obj, 0, 0);
+    dump_object(fp, obj, 0, 0);
 }
