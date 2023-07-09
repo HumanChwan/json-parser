@@ -349,10 +349,10 @@ void set_null_for_key(struct Object* obj, String key) {
 void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
         switch (el.type) {
             case JSON_TYPE_OBJECT:
-                dump_object(fp, *(struct Object*)el.value, depth + 1, indent);
+                dump_object(fp, *(struct Object*)el.value, depth, indent);
                 break;
             case JSON_TYPE_ARRAY:
-                dump_array(fp, *(Array*)el.value, depth + 1, indent);
+                dump_array(fp, *(Array*)el.value, depth, indent);
                 break;
             case JSON_TYPE_CHAR:
                 fprintf(fp, "\"%c\"", *(char*)el.value);
@@ -404,7 +404,7 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
         for (size_t i = 0; i < (depth + 1) * indent; ++i)
             fprintf(fp, " ");
         
-        dump_value(fp, el, depth, indent);
+        dump_value(fp, el, depth + 1, indent);
     }
 
     if (indent != 0)
@@ -437,7 +437,7 @@ void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
             delete_string(safe);
         }
 
-        dump_value(fp, iter->element, depth, indent);
+        dump_value(fp, iter->element, depth + 1, indent);
     }
 
     if (indent != 0)
@@ -773,7 +773,7 @@ struct Object load_object(FILE *fp) {
 
 void dump_json(FILE* fp, struct Element el, size_t indent) {
     reset_read();
-    dump_value(fp, el, -1, indent);
+    dump_value(fp, el, 0, indent);
 }
 
 struct Element load_json(FILE* fp) { 
