@@ -12,6 +12,19 @@
 
 #include <assert.h>
 
+// #define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col)
+#define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col)
+
+size_t row, col;
+
+void reset_read() {
+    row = 1, col = 0;
+}
+void ack_read(char c) {
+    if (c == '\n') row++, col = 0;
+    else col++;
+}
+
 // Some JAVA code bruh moment, don't know shit about the math behind it.
 // Something to do with the lower bits being not very random. 
 uint32_t _hash_uniform(uint32_t h) {
@@ -128,7 +141,7 @@ struct Object copy_object(struct Object obj) {
                     set_null_for_key(&ret, iter->NODE.key);
                     break;
                 default:
-                    fprintf(stderr, "[ERROR]: Encountered NAT or others");
+                    ERROR("Encountered NAT or others");
                     exit(1);
                     break;
             }
@@ -289,7 +302,7 @@ void set_null_for_key(struct Object* obj, String key) {
 void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
         switch (el.type) {
             case JSON_TYPE_OBJECT:
-                dump_json(fp, *(struct Object*)el.value, depth + 1, indent);
+                dump_object(fp, *(struct Object*)el.value, depth + 1, indent);
                 break;
             case JSON_TYPE_ARRAY:
                 dump_array(fp, *(Array*)el.value, depth + 1, indent);
@@ -319,7 +332,7 @@ void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
                 fprintf(fp, "null");
                 break;
             default:
-                fprintf(stderr, "[ERROR]: NAT detected");
+                ERROR("NAT detected");
                 break;
 
 
@@ -355,7 +368,7 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
 }
 
 
-void dump_json(FILE* fp, struct Object obj, size_t depth, size_t indent) {
+void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
     bool first = true;
 
     fprintf(fp, "{");
@@ -397,12 +410,15 @@ String load_string(FILE* fp) {
     // first character is always '"'
     
     assert(fgetc(fp) == '"' && "Key string must have the first character as \".");
+    ack_read('"');
 
     String key = create_empty_string(); 
     bool escape_init = false;
 
     char c;
     for (c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+        ack_read(c);
+
         if (escape_init) {
             if (c == 'n') append_char_to_string(&key, '\n');
             else if (c == 'b') append_char_to_string(&key, '\b');
@@ -437,7 +453,9 @@ String load_string(FILE* fp) {
 
 bool literal_check(FILE* fp, const char* literal, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        if (fgetc(fp) != literal[i]) {
+        char c = fgetc(fp);
+        if (c != literal[i]) {
+            ack_read(c);
             return false;
         }
     }
@@ -449,7 +467,7 @@ struct Element load_value(FILE* fp, char first_char) {
     // here the first character which would be gotten would not be space-like char. 
     if (first_char == '{') {
         struct Object *value = malloc(sizeof(struct Object));
-        *value = load_json(fp);
+        *value = load_object(fp);
         return (struct Element){JSON_TYPE_OBJECT, (void*)value};
     } else if (first_char == '[') {
         Array *value = malloc(sizeof(Array));
@@ -462,7 +480,7 @@ struct Element load_value(FILE* fp, char first_char) {
     } else if (first_char == 'f') {
         // This must be the literal `false`
         if (!literal_check(fp, "false", 5)) {
-            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
 
@@ -472,7 +490,7 @@ struct Element load_value(FILE* fp, char first_char) {
     } else if (first_char == 't') {
         // This must be the literal `true`
         if (!literal_check(fp, "true", 4)) {
-            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
 
@@ -482,7 +500,7 @@ struct Element load_value(FILE* fp, char first_char) {
     } else if (first_char == 'n') {
         // This must be the literal `null`
         if (!literal_check(fp, "null", 4)) {
-            fprintf(stderr, "[ERROR]: Unknown literal found. Aborting.\n");
+            ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
 
@@ -495,13 +513,16 @@ struct Element load_value(FILE* fp, char first_char) {
 
         if (first_char == '-') {
             assert(fgetc(fp) == '-' && "[ERROR]: Wow, that was definitely not expected\n");
+            ack_read('-');
             negative = true;
         }
 
         for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
             if (c == '.') {
+                ack_read(c);
+
                 if (got_decimal) {
-                    fprintf(stderr, "[ERROR]: A decimal number must only contain single period char.\n");
+                    ERROR("A decimal number must only contain single period char.");
                     exit(1);
                 }
                 got_decimal = true;
@@ -510,6 +531,8 @@ struct Element load_value(FILE* fp, char first_char) {
                 (void)fseek(fp, -1L, SEEK_CUR);
                 break;
             }
+
+            ack_read(c);
 
             short dig = c - '0';
 
@@ -550,18 +573,29 @@ Array load_array(FILE* fp) {
         END
     } status = START;
 
+    bool first_element = true;
     for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue; 
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            ack_read(c);
+            continue;
+        }
 
+        
         switch (status) {
             case START:
+                ack_read(c);
                 if (c != '[') {
-                    fprintf(stderr, "[ERROR]: Array doesn't start with `[`.\n");
+                    ERROR("Array doesn't start with `[`.");
                     exit(1);
                 }
                 status = ELEMENT_START;
                 break;
             case ELEMENT_START:
+                if (first_element && c == ']') {
+                    status = END;
+                    break;
+                }
+                first_element = false;
                 (void)fseek(fp, -1L, SEEK_CUR);
                 struct Element el = load_value(fp, c);
                 array_push_back(&array, el.type, el.value);
@@ -569,8 +603,9 @@ Array load_array(FILE* fp) {
                 status = ELEMENT_END;
                 break;
             case ELEMENT_END:
+                ack_read(c);
                 if (c != ']' && c != ',') {
-                    fprintf(stderr, "[ERROR]: Array elements must end with a `,` or `]`\n");
+                    ERROR("Array elements must end with a `,` or `]`.");
                     exit(1);
                 }
 
@@ -580,7 +615,7 @@ Array load_array(FILE* fp) {
             case END:
                 break;
             default:
-                fprintf(stderr, "[ERROR]: Array parsing has reached unreachable state.\n Aborting.\n");
+                ERROR("Array parsing has reached unreachable state. Aborting.");
                 exit(1);
         }
 
@@ -588,14 +623,14 @@ Array load_array(FILE* fp) {
     }
 
     if (status != END) {
-        fprintf(stderr, "[ERROR]: Array parsing got cancelled before reaching end.\n Aborting.\n");
+        ERROR("Array parsing got cancelled before reaching end. Aborting.");
         exit(1);
     }
 
     return array;
 }
 
-struct Object load_json(FILE *fp) {
+struct Object load_object(FILE *fp) {
     struct Object obj = create_object();
 
     enum {
@@ -609,20 +644,30 @@ struct Object load_json(FILE *fp) {
 
 
     String key;
+    bool first_element = true;
     for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue; 
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            ack_read(c);
+            continue;
+        }
 
         switch (status) {
             case START:
+                ack_read(c);
                 if (c != '{') {
-                    fprintf(stderr, "[ERROR]: Object doesn't start with `{`.\n");
+                    ERROR("Object doesn't start with `{`.");
                     exit(1);
                 }
                 status = KEY_START;
                 break;
             case KEY_START:
+                if (first_element && c == '}') {
+                    status = END;
+                    break;
+                }
+                first_element = false;
                 if (c != '"') {
-                    fprintf(stderr, "[ERROR]: Key must be string.\n");
+                    ERROR("Key must be string.");
                     exit(1);
                 }
                 (void)fseek(fp, -1L, SEEK_CUR);
@@ -630,8 +675,9 @@ struct Object load_json(FILE *fp) {
                 status = KEY_END;
                 break;
             case KEY_END:
+                ack_read(c);
                 if (c != ':') {
-                    fprintf(stderr, "[ERROR]: Key must be succeeded by `:`\n");
+                    ERROR("Key must be succeeded by `:`");
                     exit(1);
                 }
                 status = VALUE_START;
@@ -643,8 +689,9 @@ struct Object load_json(FILE *fp) {
                 status = VALUE_END;
                 break;
             case VALUE_END:
+                ack_read(c);
                 if (c != ',' && c != '}') {
-                    fprintf(stderr, "[ERROR]: Value must be succeeded by `,` or `}`, Found: `%c`\n", c);
+                    ERROR("Value must be succeeded by `,` or `}`.");
                     exit(1);
                 }
 
@@ -655,13 +702,13 @@ struct Object load_json(FILE *fp) {
 
                 status = END;
                 if (c != '}') {
-                    fprintf(stderr, "[ERROR]: End of the object must have `}`\n");
+                    ERROR("End of the object must have `}`");
                     exit(1);
                 }
 
                 break;
             default:
-                fprintf(stderr, "[ERROR]: This shouldn't be possible.\n");
+                ERROR("This shouldn't be possible.");
                 exit(1);
         }
 
@@ -672,9 +719,22 @@ struct Object load_json(FILE *fp) {
     }
 
     if (status != END) {
-        fprintf(stderr, "[ERROR]: Reached EOF before end of object\n");
+        ERROR("Reached EOF before end of object\n");
         exit(1);
     }
 
     return obj;
+}
+
+void dump_json(FILE* fp, struct Element el, size_t indent) {
+    dump_value(fp, el, 0, indent);
+}
+
+struct Element load_json(FILE* fp) { 
+    reset_read();
+
+    char c = fgetc(fp);
+    (void)fseek(fp, -1L, SEEK_CUR);
+
+    return load_value(fp, c);
 }

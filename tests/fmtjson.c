@@ -1,6 +1,4 @@
 #include "../Object.h"
-#include "../String.h"
-#include "../Array.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,12 +20,12 @@ int main(int argc, char** argv) {
     }
 
     FILE* fp = fopen(argv[1], "r");
-    struct Object obj = load_json(fp);
+    struct Element el = load_json(fp);
     fclose(fp);
 
     printf("Read and parsed `%s`\n", argv[1]);
 
     fp = fopen(argv[1], "w");
-    dump_json(fp, obj, 0, 4);
+    dump_json(fp, el, 2);
     fclose(fp);
 }

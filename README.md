@@ -27,6 +27,8 @@
         void set_string_for_key(struct Object* obj, String key, String x);
         void set_object_for_key(struct Object* obj, String key, struct Object x);
         void set_array_for_key(struct Object* obj, String key, Array x);
+        void set_bool_for_key(struct Object* obj, String key, bool x);
+        void set_null_for_key(struct Object* obj, String key);
         ```
         - PS: It is be noted that the above functions also allow modification of value for the key
 
@@ -42,6 +44,7 @@
         String* get_string_for_key(struct Object* obj, String key);
         struct Object* get_object_for_key(struct Object* obj, String key);
         Array* get_array_for_key(struct Object* obj, String key);
+        bool get_bool_for_key(struct Object* obj, String key);
         ```
 ### Loading and Dumping JSON (basically formatting JSON)
 
