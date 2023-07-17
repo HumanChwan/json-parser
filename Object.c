@@ -15,6 +15,7 @@
 // #define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col)
 #define ERROR(x) fprintf(stderr, "%zu:%zu [ERROR]: "x"\n", row, col + 1)
 
+
 size_t row, col;
 
 void reset_read() {
@@ -346,6 +347,23 @@ void set_null_for_key(struct Object* obj, String key) {
     set_value_for_key(obj, key, JSON_TYPE_NULL, NULL);
 }
 
+#define FILE_READER_BUF 1000
+typedef struct {
+    FILE* fp; 
+    char buffer[FILE_READER_BUF];
+    size_t buffer_size;
+    size_t buffer_pointer;
+} FileReader;
+
+void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent);
+struct Object load_object(FileReader* fr);
+
+void dump_array(FILE* fp, Array arr, size_t depth, size_t indent);
+Array load_array(FileReader* fr);
+
+void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent);
+struct Element load_value(FileReader* fr, char first_char);
+
 void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent) {
         switch (el.type) {
             case JSON_TYPE_OBJECT:
@@ -448,10 +466,37 @@ void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
     fprintf(fp, "}");
 }
 
-String load_string(FILE* fp) {
+
+void initialise_file_reader(FileReader* fr, FILE* fp) {
+    fr->buffer_pointer = 0;
+    fr->fp = fp;
+    fr->buffer_size = fread(fr->buffer, sizeof(char), FILE_READER_BUF, fr->fp);
+}
+
+char file_reader_getc(FileReader* fr) {
+    if (fr->buffer_pointer < fr->buffer_size) {
+        return fr->buffer[fr->buffer_pointer++];
+    }
+    fr->buffer[0] =  fr->buffer[fr->buffer_size - 1];
+    fr->buffer_size = fread(fr->buffer + 1, sizeof(char), FILE_READER_BUF - 1, fr->fp) + 1;
+    fr->buffer_pointer = 1;
+
+    return file_reader_getc(fr);
+}
+
+void move_pointer_back(FileReader* fr) {
+    if (fr->buffer_pointer == 0) {
+        fprintf(stderr, "[ERROR]: Requested to move File Reader's pointer behind the buffer start.\n");
+        exit(1);
+    }
+    fr->buffer_pointer--;
+}
+
+
+String load_string(FileReader* fr) {
     // first character is always '"'
     
-    if (fgetc(fp) != '"') {
+    if (file_reader_getc(fr) != '"') {
         ERROR("String should have started with `\"` character.");
         exit(1);
     }
@@ -461,7 +506,7 @@ String load_string(FILE* fp) {
     bool escape_init = false;
 
     char c;
-    for (c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+    for (c = file_reader_getc(fr); c != EOF; c = file_reader_getc(fr)) {
         ack_read(c);
 
         if (escape_init) {
@@ -496,9 +541,9 @@ String load_string(FILE* fp) {
     return key;
 }
 
-bool literal_check(FILE* fp, const char* literal, size_t len) {
+bool literal_check(FileReader* fr, const char* literal, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        char c = fgetc(fp);
+        char c = file_reader_getc(fr);
         if (c != literal[i]) {
             ack_read(c);
             return false;
@@ -508,23 +553,23 @@ bool literal_check(FILE* fp, const char* literal, size_t len) {
     return true;
 }
 
-struct Element load_value(FILE* fp, char first_char) {
+struct Element load_value(FileReader* fr, char first_char) {
     // here the first character which would be gotten would not be space-like char. 
     if (first_char == '{') {
         struct Object *value = malloc(sizeof(struct Object));
-        *value = load_object(fp);
+        *value = load_object(fr);
         return (struct Element){JSON_TYPE_OBJECT, (void*)value};
     } else if (first_char == '[') {
         Array *value = malloc(sizeof(Array));
-        *value = load_array(fp);
+        *value = load_array(fr);
         return (struct Element){JSON_TYPE_ARRAY, (void*)value};
     } else if (first_char == '"') {
         String *value = malloc(sizeof(String));
-        *value = load_string(fp);
+        *value = load_string(fr);
         return (struct Element){JSON_TYPE_STRING, (void*)value};
     } else if (first_char == 'f') {
         // This must be the literal `false`
-        if (!literal_check(fp, "false", 5)) {
+        if (!literal_check(fr, "false", 5)) {
             ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
@@ -534,7 +579,7 @@ struct Element load_value(FILE* fp, char first_char) {
         return (struct Element){JSON_TYPE_BOOLEAN, (void*)value};
     } else if (first_char == 't') {
         // This must be the literal `true`
-        if (!literal_check(fp, "true", 4)) {
+        if (!literal_check(fr, "true", 4)) {
             ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
@@ -544,7 +589,7 @@ struct Element load_value(FILE* fp, char first_char) {
         return (struct Element){JSON_TYPE_BOOLEAN, (void*)value};
     } else if (first_char == 'n') {
         // This must be the literal `null`
-        if (!literal_check(fp, "null", 4)) {
+        if (!literal_check(fr, "null", 4)) {
             ERROR("Unknown literal found. Aborting.");
             exit(1);
         }
@@ -557,12 +602,12 @@ struct Element load_value(FILE* fp, char first_char) {
         double DECIMAL_FACTOR = 0.1;
 
         if (first_char == '-') {
-            assert(fgetc(fp) == '-' && "[ERROR]: Wow, that was definitely not expected\n");
+            assert(file_reader_getc(fr) == '-' && "[ERROR]: Wow, that was definitely not expected\n");
             ack_read('-');
             negative = true;
         }
 
-        for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+        for (char c = file_reader_getc(fr); c != EOF; c = file_reader_getc(fr)) {
             if (c == '.') {
                 ack_read(c);
 
@@ -573,7 +618,7 @@ struct Element load_value(FILE* fp, char first_char) {
                 got_decimal = true;
                 continue;
             } else if (!isdigit(c)) {
-                (void)fseek(fp, -1L, SEEK_CUR);
+                move_pointer_back(fr);
                 break;
             }
 
@@ -608,7 +653,7 @@ struct Element load_value(FILE* fp, char first_char) {
     }
 }
 
-Array load_array(FILE* fp) {
+Array load_array(FileReader* fr) {
     Array array = create_empty_array();
 
     enum {
@@ -619,7 +664,7 @@ Array load_array(FILE* fp) {
     } status = START;
 
     bool first_element = true;
-    for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+    for (char c = file_reader_getc(fr); c != EOF; c = file_reader_getc(fr)) {
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             ack_read(c);
             continue;
@@ -641,8 +686,8 @@ Array load_array(FILE* fp) {
                     break;
                 }
                 first_element = false;
-                (void)fseek(fp, -1L, SEEK_CUR);
-                struct Element el = load_value(fp, c);
+                move_pointer_back(fr);
+                struct Element el = load_value(fr, c);
                 array_push_back(&array, el.type, el.value);
 
                 status = ELEMENT_END;
@@ -675,7 +720,7 @@ Array load_array(FILE* fp) {
     return array;
 }
 
-struct Object load_object(FILE *fp) {
+struct Object load_object(FileReader* fr) {
     struct Object obj = create_object();
 
     enum {
@@ -690,7 +735,7 @@ struct Object load_object(FILE *fp) {
 
     String key;
     bool first_element = true;
-    for (char c = fgetc(fp); c != EOF; c = fgetc(fp)) {
+    for (char c = file_reader_getc(fr); c != EOF; c = file_reader_getc(fr)) {
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             ack_read(c);
             continue;
@@ -715,8 +760,8 @@ struct Object load_object(FILE *fp) {
                     ERROR("Key must be string.");
                     exit(1);
                 }
-                (void)fseek(fp, -1L, SEEK_CUR);
-                key = load_string(fp);
+                move_pointer_back(fr);
+                key = load_string(fr);
                 status = KEY_END;
                 break;
             case KEY_END:
@@ -728,8 +773,8 @@ struct Object load_object(FILE *fp) {
                 status = VALUE_START;
                 break;
             case VALUE_START:
-                (void)fseek(fp, -1L, SEEK_CUR);
-                struct Element el = load_value(fp, c);
+                move_pointer_back(fr);
+                struct Element el = load_value(fr, c);
                 set_value_for_key(&obj, key, el.type, el.value);
                 status = VALUE_END;
                 break;
@@ -779,8 +824,11 @@ void dump_json(FILE* fp, struct Element el, size_t indent) {
 struct Element load_json(FILE* fp) { 
     reset_read();
 
-    char c = fgetc(fp);
-    (void)fseek(fp, -1L, SEEK_CUR);
+    FileReader fr;
+    initialise_file_reader(&fr, fp);
 
-    return load_value(fp, c);
+    char c = file_reader_getc(&fr);
+    move_pointer_back(&fr);
+
+    return load_value(&fr, c);
 }

@@ -85,15 +85,6 @@ void set_array_for_key(struct Object* obj, String key, Array x);
 void set_bool_for_key(struct Object* obj, String key, bool x);
 void set_null_for_key(struct Object* obj, String key);
 
-void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent);
-struct Object load_object(FILE* fp);
-
-void dump_array(FILE* fp, Array arr, size_t depth, size_t indent);
-Array load_array(FILE* fp);
-
-void dump_value(FILE* fp, struct Element el, size_t depth, size_t indent);
-struct Element load_value(FILE* fp, char first_char);
-
 void dump_json(FILE* fp, struct Element el, size_t indent);
 struct Element load_json(FILE* fp);
 

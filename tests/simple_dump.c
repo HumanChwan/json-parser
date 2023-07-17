@@ -4,6 +4,7 @@
 #include "../Object.h"
 
 int main(void) {
+    struct Element el;
     struct Object obj = create_object();
 
     set_string_for_key(&obj, IMM_STRING("name"), IMM_STRING("Dinesh Chukkala"));
@@ -18,5 +19,8 @@ int main(void) {
 
     FILE* fp = fopen("test.json", "w");
 
-    dump_object(fp, obj, 0, 0);
+    el.type = JSON_TYPE_OBJECT;
+    el.value = &obj;
+
+    dump_json(fp, el,  0);
 }
