@@ -93,6 +93,11 @@ void _rehash_object(struct Object* obj) {
 struct Object create_object() {
     struct NodeKVP** arr = malloc(sizeof(struct NodeKVP*) * HASHMAP_INIT_SIZE);
 
+    if (!arr) {
+        fprintf(stderr, "ERROR: Could not allocated memory. Aborting.\n");
+        exit(1);
+    }
+
     // Setting all elements to NULL just in case.
     for (size_t i = 0; i < HASHMAP_INIT_SIZE; ++i) arr[i] = NULL;
 
@@ -143,21 +148,26 @@ struct KeyValuePair* next_element(struct Object* obj) {
 }
 
 struct Object copy_object(struct Object obj) {
+    struct Object ret = obj;
+    ret.element_count = 0;
     struct NodeKVP** arr = malloc(sizeof(struct NodeKVP*) * obj.arr_size);
+
+    if (!arr) {
+        fprintf(stderr, "ERROR: Could not allocate memory. Buy RAM. Aborting.\n");
+        exit(1);
+    }
     
     for (size_t i = 0; i < obj.arr_size; ++i)
         arr[i] = NULL;
-
-    struct Object ret = obj;
 
     ret.arr = arr;
 
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
 
-        struct Element element = iter->NODE.element;
-
         while (iter != NULL) {
+            struct Element element = iter->NODE.element;
+            
             switch (element.type) {
                 case JSON_TYPE_INTEGER:
                     set_int32_t_for_key(&ret, iter->NODE.key, *(int*)element.value);
@@ -195,6 +205,8 @@ struct Object copy_object(struct Object obj) {
             iter = iter->NEXT;
         }
     }
+
+    assert(ret.element_count == obj.element_count && "Copying should not change the element count in objects.");
     return ret;
 }
 
@@ -202,9 +214,9 @@ void delete_object(struct Object obj) {
     for (size_t i = 0; i < obj.arr_size; ++i) {
         struct NodeKVP* iter = obj.arr[i];
 
-        struct Element element = iter->NODE.element;
-
         while (iter != NULL) {
+            struct Element element = iter->NODE.element;
+
             if (element.type == JSON_TYPE_OBJECT)
                 delete_object(*(struct Object*)element.value);
             else if (element.type == JSON_TYPE_STRING)
@@ -435,11 +447,13 @@ void dump_array(FILE* fp, Array arr, size_t depth, size_t indent) {
 
 
 void dump_object(FILE* fp, struct Object obj, size_t depth, size_t indent) {
-    bool first = true;
+    bool first;
+    struct KeyValuePair *iter;
 
+    first = true;
     fprintf(fp, "{");
 
-    for (struct KeyValuePair *iter = next_element(&obj); iter != NULL; iter = next_element(&obj)) {
+    for (iter = next_element(&obj); iter != NULL; iter = next_element(&obj)) {
         if (!first) fprintf(fp, ",");
         else first = false;
 

@@ -1,6 +1,5 @@
 CC=gcc
 CFLAGS=-Wall -Werror -Wextra -std=c99 -pedantic
-
 DEPS=String.c Object.c Array.c
 
 all: main
