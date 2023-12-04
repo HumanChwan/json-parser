@@ -5,11 +5,11 @@
 #include <string.h>
 
 void usage(void) {
-    printf("USAGE:\n\tfmtjson FILE\n\tFILE: a json file\n");
+    printf("USAGE:\n\tfmtjson INFILE OUTFILE\n\tINFILE: unformatted json file\n\tOUTFILE: formatted json file\n");
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
+    if (argc < 3 || argc > 3) {
         usage();
         exit(1);
     }
@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 
     printf("Read and parsed `%s`\n", argv[1]);
 
-    fp = fopen(argv[1], "wb+");
+    fp = fopen(argv[2], "wb+");
     dump_json(fp, el, 2);
     fclose(fp);
 }
